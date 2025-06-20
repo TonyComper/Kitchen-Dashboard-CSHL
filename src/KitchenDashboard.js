@@ -1,8 +1,7 @@
 import React, { useEffect, useState } from 'react';
 
 const fetchOrders = async () => {
-  const res = await fetch("https://qsr-orders-default-rtdb.firebaseio.com/orders.json
-"); // Replace with your actual Firebase endpoint
+  const res = await fetch("https://qsr-orders-default-rtdb.firebaseio.com/orders.json"); // Replace with your actual Firebase endpoint
   const data = await res.json();
   return Object.entries(data || {}).map(([id, order]) => ({ id, ...order }));
 };
