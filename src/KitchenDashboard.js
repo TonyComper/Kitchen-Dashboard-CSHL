@@ -22,7 +22,7 @@ export default function KitchenDashboard() {
 
   return (
     <div style={{ padding: '1rem', fontFamily: 'Arial' }}>
-      <h1>Kitchen Orders</h1>
+      <h1>Pick Up Orders</h1>
       <div style={{ display: 'grid', gap: '1rem' }}>
         {orders.map((order) => (
           <div key={order.id} style={{ border: '1px solid #ccc', padding: '1rem', borderRadius: '8px' }}>
