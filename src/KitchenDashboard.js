@@ -1,10 +1,10 @@
-// kitchen-dashboard: Only show unaccepted orders, newest first
+// kitchen-dashboard: Persist accepted orders in localStorage to hide them on reload
 
 import React, { useEffect, useState, useRef } from 'react';
 
 export default function KitchenDashboard() {
   const [orders, setOrders] = useState([]);
-  const [accepted, setAccepted] = useState(new Set());
+  const [accepted, setAccepted] = useState(new Set(JSON.parse(localStorage.getItem('acceptedOrders') || '[]')));
   const [seenOrders, setSeenOrders] = useState(new Set());
   const [audioEnabled, setAudioEnabled] = useState(false);
   const alarmIntervalRef = useRef(null);
@@ -57,7 +57,11 @@ export default function KitchenDashboard() {
   };
 
   const acceptOrder = (id) => {
-    setAccepted(prev => new Set(prev).add(id));
+    setAccepted(prev => {
+      const updated = new Set(prev).add(id);
+      localStorage.setItem('acceptedOrders', JSON.stringify(Array.from(updated)));
+      return updated;
+    });
     clearInterval(alarmIntervalRef.current);
   };
 
