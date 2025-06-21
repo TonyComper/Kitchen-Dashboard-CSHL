@@ -1,11 +1,11 @@
-// kitchen-dashboard: Updated with user-initiated audio unlock
+// kitchen-dashboard: Only show unaccepted orders, newest first
 
 import React, { useEffect, useState, useRef } from 'react';
 
 export default function KitchenDashboard() {
   const [orders, setOrders] = useState([]);
   const [accepted, setAccepted] = useState(new Set());
-  const [lastOrderId, setLastOrderId] = useState(null);
+  const [seenOrders, setSeenOrders] = useState(new Set());
   const [audioEnabled, setAudioEnabled] = useState(false);
   const alarmIntervalRef = useRef(null);
   const alarmAudio = useRef(null);
@@ -24,22 +24,23 @@ export default function KitchenDashboard() {
       const orderArray = Object.entries(data || {}).map(([id, order]) => ({
         id,
         ...order,
-      }));
+      })).filter(order => !accepted.has(order.id));
 
       orderArray.sort((a, b) => new Date(b['Order Date']) - new Date(a['Order Date']));
 
-      if (orderArray.length > 0 && orderArray[0].id !== lastOrderId) {
-        setLastOrderId(orderArray[0].id);
-        triggerAlarm(orderArray[0].id);
-      }
-
       setOrders(orderArray);
+
+      const newUnseen = orderArray.find(order => !seenOrders.has(order.id));
+      if (newUnseen) {
+        setSeenOrders(prev => new Set(prev).add(newUnseen.id));
+        triggerAlarm(newUnseen.id);
+      }
     };
 
     fetchOrders();
     const interval = setInterval(fetchOrders, 5000);
     return () => clearInterval(interval);
-  }, [lastOrderId, audioEnabled]);
+  }, [audioEnabled, accepted, seenOrders]);
 
   const triggerAlarm = (orderId) => {
     if (alarmIntervalRef.current) {
@@ -76,7 +77,7 @@ export default function KitchenDashboard() {
     <div style={{ padding: '1rem', fontFamily: 'Arial' }}>
       <h1>Pick Up Orders</h1>
       <div style={{ display: 'grid', gap: '1rem' }}>
-        {orders.filter(order => !accepted.has(order.id)).map((order) => (
+        {orders.map((order) => (
           <div key={order.id} style={{ border: '1px solid #ccc', padding: '1rem', borderRadius: '8px' }}>
             <h2>Order #{order["Order ID"]}</h2>
             <p><strong>Customer:</strong> {order["Customer Name"]}</p>
