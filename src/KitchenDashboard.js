@@ -28,7 +28,7 @@ export default function KitchenDashboard() {
           <div key={order.id} style={{ border: '1px solid #ccc', padding: '1rem', borderRadius: '8px' }}>
             <h2>Order #{order["Order ID"]}</h2>
             <p><strong>Customer:</strong> {order["Customer Name"]}</p>
-            <p><strong>Order Date:</strong> {order["Order Date"]}</p>
+            <p><strong>Order Date:</strong> {order["Order Date"] || order.Order_Date || order.OrderDate || "Not provided"}</p>
             <p><strong>Pickup Time:</strong> {order["Pickup Time"]}</p>
             <p><strong>Total:</strong> {order["Total Price"]}</p>
             <ul>
