@@ -1,4 +1,4 @@
-// kitchen-dashboard: Show order count, current date, toggle accepted, sort most recent accepted, and limit to today + yesterday
+// kitchen-dashboard: Show order count, current date, toggle accepted, sort most recent accepted, limit to today + yesterday, and update Firebase with accepted timestamp
 
 import React, { useEffect, useState, useRef } from 'react';
 
@@ -56,12 +56,21 @@ export default function KitchenDashboard() {
     alarmAudio.current.play();
   };
 
-  const acceptOrder = (id) => {
+  const acceptOrder = async (id) => {
+    const timestamp = new Date().toISOString();
+
     setAccepted(prev => {
       const updated = new Set(prev).add(id);
       localStorage.setItem('acceptedOrders', JSON.stringify(Array.from(updated)));
       return updated;
     });
+
+    await fetch(`https://qsr-orders-default-rtdb.firebaseio.com/orders/${id}.json`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ "Accepted At": timestamp })
+    });
+
     clearInterval(alarmIntervalRef.current);
   };
 
