@@ -1,4 +1,4 @@
-// kitchen-dashboard: Persist accepted orders in localStorage to hide them on reload
+// kitchen-dashboard: Persist accepted orders in localStorage to hide them on reload and add toggle view for accepted
 
 import React, { useEffect, useState, useRef } from 'react';
 
@@ -7,6 +7,7 @@ export default function KitchenDashboard() {
   const [accepted, setAccepted] = useState(new Set(JSON.parse(localStorage.getItem('acceptedOrders') || '[]')));
   const [seenOrders, setSeenOrders] = useState(new Set());
   const [audioEnabled, setAudioEnabled] = useState(false);
+  const [showAccepted, setShowAccepted] = useState(false);
   const alarmIntervalRef = useRef(null);
   const alarmAudio = useRef(null);
 
@@ -24,13 +25,12 @@ export default function KitchenDashboard() {
       const orderArray = Object.entries(data || {}).map(([id, order]) => ({
         id,
         ...order,
-      })).filter(order => !accepted.has(order.id));
+      }));
 
       orderArray.sort((a, b) => new Date(b['Order Date']) - new Date(a['Order Date']));
-
       setOrders(orderArray);
 
-      const newUnseen = orderArray.find(order => !seenOrders.has(order.id));
+      const newUnseen = orderArray.find(order => !seenOrders.has(order.id) && !accepted.has(order.id));
       if (newUnseen) {
         setSeenOrders(prev => new Set(prev).add(newUnseen.id));
         triggerAlarm(newUnseen.id);
@@ -77,11 +77,16 @@ export default function KitchenDashboard() {
     );
   }
 
+  const displayedOrders = orders.filter(order => showAccepted ? accepted.has(order.id) : !accepted.has(order.id));
+
   return (
     <div style={{ padding: '1rem', fontFamily: 'Arial' }}>
       <h1>Pick Up Orders</h1>
+      <button onClick={() => setShowAccepted(prev => !prev)} style={{ marginBottom: '1rem', padding: '0.5rem 1rem' }}>
+        {showAccepted ? 'Hide Accepted Orders' : 'View Accepted Orders'}
+      </button>
       <div style={{ display: 'grid', gap: '1rem' }}>
-        {orders.map((order) => (
+        {displayedOrders.map((order) => (
           <div key={order.id} style={{ border: '1px solid #ccc', padding: '1rem', borderRadius: '8px' }}>
             <h2>Order #{order["Order ID"]}</h2>
             <p><strong>Customer:</strong> {order["Customer Name"]}</p>
@@ -93,9 +98,11 @@ export default function KitchenDashboard() {
                 <li key={index}>{item.trim()}</li>
               ))}
             </ul>
-            <button onClick={() => acceptOrder(order.id)} style={{ marginTop: '1rem', backgroundColor: '#28a745', color: 'white', padding: '0.5rem 1rem', border: 'none', borderRadius: '4px' }}>
-              ACCEPT
-            </button>
+            {!accepted.has(order.id) && (
+              <button onClick={() => acceptOrder(order.id)} style={{ marginTop: '1rem', backgroundColor: '#28a745', color: 'white', padding: '0.5rem 1rem', border: 'none', borderRadius: '4px' }}>
+                ACCEPT
+              </button>
+            )}
           </div>
         ))}
       </div>
