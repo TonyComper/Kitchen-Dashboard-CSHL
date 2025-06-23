@@ -1,4 +1,4 @@
-// kitchen-dashboard: Persist accepted orders in localStorage to hide them on reload and add toggle view for accepted
+// kitchen-dashboard: Show order count, current date, and toggle for accepted orders
 
 import React, { useEffect, useState, useRef } from 'react';
 
@@ -79,9 +79,21 @@ export default function KitchenDashboard() {
 
   const displayedOrders = orders.filter(order => showAccepted ? accepted.has(order.id) : !accepted.has(order.id));
 
+  const today = new Date();
+  const formattedDate = today.toLocaleDateString('en-US', {
+    weekday: 'long', year: 'numeric', month: 'long', day: 'numeric'
+  });
+
+  const dailyOrderCount = orders.filter(order => {
+    const orderDate = new Date(order['Order Date']);
+    return orderDate.toDateString() === today.toDateString();
+  }).length;
+
   return (
     <div style={{ padding: '1rem', fontFamily: 'Arial' }}>
       <h1>Pick Up Orders</h1>
+      <p style={{ margin: '0.5rem 0' }}><strong>Date:</strong> {formattedDate}</p>
+      <p style={{ margin: '0.5rem 0' }}><strong>Orders Today:</strong> {dailyOrderCount}</p>
       <button onClick={() => setShowAccepted(prev => !prev)} style={{ marginBottom: '1rem', padding: '0.5rem 1rem' }}>
         {showAccepted ? 'Hide Accepted Orders' : 'View Accepted Orders'}
       </button>
