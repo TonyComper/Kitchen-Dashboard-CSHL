@@ -1,4 +1,4 @@
-// kitchen-dashboard: Show order count, current date, toggle accepted, and sort most recent accepted on top
+// kitchen-dashboard: Show order count, current date, toggle accepted, sort most recent accepted, and limit to today + yesterday
 
 import React, { useEffect, useState, useRef } from 'react';
 
@@ -77,11 +77,26 @@ export default function KitchenDashboard() {
     );
   }
 
+  const today = new Date();
+  const yesterday = new Date();
+  yesterday.setDate(today.getDate() - 1);
+
+  const isTodayOrYesterday = (dateStr) => {
+    const date = new Date(dateStr);
+    return (
+      date.toDateString() === today.toDateString() ||
+      date.toDateString() === yesterday.toDateString()
+    );
+  };
+
   const displayedOrders = orders
-    .filter(order => showAccepted ? accepted.has(order.id) : !accepted.has(order.id))
+    .filter(order => {
+      const isAccepted = accepted.has(order.id);
+      const isInDateRange = isTodayOrYesterday(order['Order Date']);
+      return showAccepted ? isAccepted && isInDateRange : !isAccepted;
+    })
     .sort((a, b) => new Date(b['Order Date']) - new Date(a['Order Date']));
 
-  const today = new Date();
   const formattedDate = today.toLocaleDateString('en-US', {
     weekday: 'long', year: 'numeric', month: 'long', day: 'numeric'
   });
@@ -111,11 +126,11 @@ export default function KitchenDashboard() {
       </button>
       <div style={{ display: 'grid', gap: '1rem' }}>
         {displayedOrders.map((order) => (
-          <div key={order.id} style={{ border: '1px solid #ccc', padding: '1rem', borderRadius: '8px' }}>
+          <div key={order.id} style={{ border: '1px solid #ccc', padding: '1.5rem', borderRadius: '8px', fontSize: '1.2rem' }}>
             <h2>Order #{order["Order ID"]}</h2>
             <p><strong>Customer:</strong> {order["Customer Name"]}</p>
             <p><strong>Order Date:</strong> {order["Order Date"] || order.Order_Date || order.OrderDate || 'Not provided'}</p>
-            <p><strong>Pickup Time:</strong> {order["Pickup Time"]}</p>
+            <p style={{ color: 'red', fontWeight: 'bold' }}><strong>Pickup Time:</strong> {order["Pickup Time"]}</p>
             <p><strong>Total:</strong> {order["Total Price"]}</p>
             <ul>
               {order["Order Items"].split(',').map((item, index) => (
