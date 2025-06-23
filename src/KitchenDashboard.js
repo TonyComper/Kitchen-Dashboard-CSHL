@@ -1,4 +1,4 @@
-// kitchen-dashboard: Show order count, current date, toggle accepted, sort most recent accepted, limit to today + yesterday, and update Firebase with accepted timestamp
+// kitchen-dashboard: Show order count, current date, toggle accepted, sort most recent accepted, limit to today + yesterday, update Firebase with accepted timestamp, and display accepted timestamp in green
 
 import React, { useEffect, useState, useRef } from 'react';
 
@@ -139,6 +139,9 @@ export default function KitchenDashboard() {
             <h2>Order #{order["Order ID"]}</h2>
             <p><strong>Customer:</strong> {order["Customer Name"]}</p>
             <p><strong>Order Date:</strong> {order["Order Date"] || order.Order_Date || order.OrderDate || 'Not provided'}</p>
+            {showAccepted && order["Accepted At"] && (
+              <p style={{ color: 'green', fontWeight: 'bold' }}><strong>Accepted At:</strong> {new Date(order["Accepted At"]).toLocaleString()}</p>
+            )}
             <p style={{ color: 'red', fontWeight: 'bold' }}><strong>Pickup Time:</strong> {order["Pickup Time"]}</p>
             <p><strong>Total:</strong> {order["Total Price"]}</p>
             <ul>
