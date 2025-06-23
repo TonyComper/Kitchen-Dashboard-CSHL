@@ -1,4 +1,4 @@
-// kitchen-dashboard: Show order count, current date, and toggle for accepted orders
+// kitchen-dashboard: Show order count, current date, toggle accepted, and sort most recent accepted on top
 
 import React, { useEffect, useState, useRef } from 'react';
 
@@ -77,7 +77,9 @@ export default function KitchenDashboard() {
     );
   }
 
-  const displayedOrders = orders.filter(order => showAccepted ? accepted.has(order.id) : !accepted.has(order.id));
+  const displayedOrders = orders
+    .filter(order => showAccepted ? accepted.has(order.id) : !accepted.has(order.id))
+    .sort((a, b) => new Date(b['Order Date']) - new Date(a['Order Date']));
 
   const today = new Date();
   const formattedDate = today.toLocaleDateString('en-US', {
@@ -94,7 +96,17 @@ export default function KitchenDashboard() {
       <h1>Pick Up Orders</h1>
       <p style={{ margin: '0.5rem 0' }}><strong>Date:</strong> {formattedDate}</p>
       <p style={{ margin: '0.5rem 0' }}><strong>Orders Today:</strong> {dailyOrderCount}</p>
-      <button onClick={() => setShowAccepted(prev => !prev)} style={{ marginBottom: '1rem', padding: '0.5rem 1rem' }}>
+      <button
+        onClick={() => setShowAccepted(prev => !prev)}
+        style={{
+          marginBottom: '1rem',
+          padding: '1rem 2rem',
+          fontSize: '1.1rem',
+          backgroundColor: '#28a745',
+          color: 'white',
+          border: 'none',
+          borderRadius: '8px'
+        }}>
         {showAccepted ? 'Hide Accepted Orders' : 'View Accepted Orders'}
       </button>
       <div style={{ display: 'grid', gap: '1rem' }}>
