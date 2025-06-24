@@ -1,4 +1,4 @@
-// kitchen-dashboard: Show order count, current date, toggle accepted, sort most recent accepted, limit to today + yesterday, update Firebase with accepted timestamp, and display accepted timestamp in green
+// kitchen-dashboard: Adds elapsed timer for unaccepted orders, shows order count, filters, sound, accepted timestamp, etc.
 
 import React, { useEffect, useState, useRef } from 'react';
 
@@ -8,11 +8,17 @@ export default function KitchenDashboard() {
   const [seenOrders, setSeenOrders] = useState(new Set());
   const [audioEnabled, setAudioEnabled] = useState(false);
   const [showAccepted, setShowAccepted] = useState(false);
+  const [now, setNow] = useState(Date.now());
   const alarmIntervalRef = useRef(null);
   const alarmAudio = useRef(null);
 
   useEffect(() => {
     alarmAudio.current = new Audio('/alert.mp3');
+  }, []);
+
+  useEffect(() => {
+    const timer = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(timer);
   }, []);
 
   useEffect(() => {
@@ -115,6 +121,13 @@ export default function KitchenDashboard() {
     return orderDate.toDateString() === today.toDateString();
   }).length;
 
+  const getElapsedTime = (dateStr) => {
+    const elapsed = now - new Date(dateStr);
+    const minutes = Math.floor(elapsed / 60000);
+    const seconds = Math.floor((elapsed % 60000) / 1000);
+    return `${minutes}m ${seconds}s ago`;
+  };
+
   return (
     <div style={{ padding: '1rem', fontFamily: 'Arial' }}>
       <h1>Pick Up Orders</h1>
@@ -141,6 +154,9 @@ export default function KitchenDashboard() {
             <p><strong>Order Date:</strong> {order["Order Date"] || order.Order_Date || order.OrderDate || 'Not provided'}</p>
             {showAccepted && order["Accepted At"] && (
               <p style={{ color: 'green', fontWeight: 'bold' }}><strong>Accepted At:</strong> {new Date(order["Accepted At"]).toLocaleString()}</p>
+            )}
+            {!showAccepted && order["Order Date"] && (
+              <p><strong>Elapsed Time:</strong> <span style={{ color: 'goldenrod' }}>{getElapsedTime(order["Order Date"])}</span></p>
             )}
             <p style={{ color: 'red', fontWeight: 'bold' }}><strong>Pickup Time:</strong> {order["Pickup Time"]}</p>
             <p><strong>Total:</strong> {order["Total Price"]}</p>
