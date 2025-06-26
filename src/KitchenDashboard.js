@@ -1,4 +1,4 @@
-// kitchen-dashboard: Adds elapsed timer for unaccepted orders, shows order count, filters, sound, accepted timestamp, etc. Now includes 'Order Type'.
+// kitchen-dashboard: Adds elapsed timer for unaccepted orders, shows order count, filters, sound, accepted timestamp, etc. Now includes 'Order Type' and 'Delivery Address'.
 
 import React, { useEffect, useState, useRef } from 'react';
 
@@ -83,7 +83,7 @@ export default function KitchenDashboard() {
   if (!audioEnabled) {
     return (
       <div style={{ padding: '2rem', textAlign: 'center' }}>
-        <h1>ORDERS</h1>
+        <h1>Pick Up Orders</h1>
         <p>Please click the button below to start the dashboard and enable sound alerts.</p>
         <button onClick={() => setAudioEnabled(true)} style={{ fontSize: '1.2rem', padding: '0.5rem 1rem' }}>
           Start Dashboard
@@ -130,7 +130,7 @@ export default function KitchenDashboard() {
 
   return (
     <div style={{ padding: '1rem', fontFamily: 'Arial' }}>
-      <h1>ORDERS</h1>
+      <h1>Pick Up Orders</h1>
       <p style={{ margin: '0.5rem 0' }}><strong>Date:</strong> {formattedDate}</p>
       <p style={{ margin: '0.5rem 0' }}><strong>Orders Today:</strong> {dailyOrderCount}</p>
       <button
@@ -152,6 +152,9 @@ export default function KitchenDashboard() {
             <h2>Order #{order["Order ID"]}</h2>
             <p><strong>Customer:</strong> {order["Customer Name"]}</p>
             <p><strong>Order Type:</strong> {order["Order Type"] || order.Order_Type || 'N/A'}</p>
+            {(order["Order Type"] || order.Order_Type) === 'Delivery' && (
+              <p><strong>Delivery Address:</strong> {order["Delivery Address"] || order.Delivery_Address || 'N/A'}</p>
+            )}
             <p><strong>Order Date:</strong> {order["Order Date"] || order.Order_Date || order.OrderDate || 'Not provided'}</p>
             {showAccepted && order["Accepted At"] && (
               <p style={{ color: 'green', fontWeight: 'bold' }}><strong>Accepted At:</strong> {new Date(order["Accepted At"]).toLocaleString()}</p>
