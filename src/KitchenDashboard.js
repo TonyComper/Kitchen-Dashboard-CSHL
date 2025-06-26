@@ -1,4 +1,4 @@
-// kitchen-dashboard: Adds elapsed timer for unaccepted orders, shows order count, filters, sound, accepted timestamp, etc.
+// kitchen-dashboard: Adds elapsed timer for unaccepted orders, shows order count, filters, sound, accepted timestamp, etc. Now includes 'Order Type'.
 
 import React, { useEffect, useState, useRef } from 'react';
 
@@ -151,6 +151,7 @@ export default function KitchenDashboard() {
           <div key={order.id} style={{ border: '1px solid #ccc', padding: '1.5rem', borderRadius: '8px', fontSize: '1.2rem' }}>
             <h2>Order #{order["Order ID"]}</h2>
             <p><strong>Customer:</strong> {order["Customer Name"]}</p>
+            <p><strong>Order Type:</strong> {order["Order Type"] || order.Order_Type || 'N/A'}</p>
             <p><strong>Order Date:</strong> {order["Order Date"] || order.Order_Date || order.OrderDate || 'Not provided'}</p>
             {showAccepted && order["Accepted At"] && (
               <p style={{ color: 'green', fontWeight: 'bold' }}><strong>Accepted At:</strong> {new Date(order["Accepted At"]).toLocaleString()}</p>
