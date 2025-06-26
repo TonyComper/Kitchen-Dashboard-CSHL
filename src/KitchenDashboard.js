@@ -130,7 +130,7 @@ export default function KitchenDashboard() {
 
   return (
     <div style={{ padding: '1rem', fontFamily: 'Arial' }}>
-      <h1>Pick Up Orders</h1>
+      <h1>ORDERS</h1>
       <p style={{ margin: '0.5rem 0' }}><strong>Date:</strong> {formattedDate}</p>
       <p style={{ margin: '0.5rem 0' }}><strong>Orders Today:</strong> {dailyOrderCount}</p>
       <button
