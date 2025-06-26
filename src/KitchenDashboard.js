@@ -152,8 +152,8 @@ export default function KitchenDashboard() {
             <h2>Order #{order["Order ID"]}</h2>
             <p><strong>Customer:</strong> {order["Customer Name"]}</p>
             <p><strong>Order Type:</strong> {order["Order Type"] || order.Order_Type || 'N/A'}</p>
-            {(order["Order Type"] || order.Order_Type) === 'Delivery' && (
-              <p><strong>Delivery Address:</strong> {order["Delivery Address"] || order.Delivery_Address || 'N/A'}</p>
+            {(order["Order Type"] || order.Order_Type)?.toLowerCase() === 'delivery' && (
+              <p><strong>Delivery Address:</strong> {order["Delivery Address"] || order.Delivery_Address || order.delivery_address || 'N/A'}</p>
             )}
             <p><strong>Order Date:</strong> {order["Order Date"] || order.Order_Date || order.OrderDate || 'Not provided'}</p>
             {showAccepted && order["Accepted At"] && (
