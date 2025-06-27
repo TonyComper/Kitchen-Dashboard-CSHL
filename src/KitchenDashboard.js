@@ -148,7 +148,7 @@ export default function KitchenDashboard() {
       <p><strong>Date:</strong> {formattedDate}</p>
       <p><strong>Orders Today:</strong> {dailyOrderCount}</p>
 
-      <button onClick={() => setShowAccepted(prev => !prev)} style={{ marginRight: '1rem', backgroundColor: 'red', color: 'white', padding: '0.5rem 1rem' }}>
+      <button onClick={() => setShowAccepted(prev => !prev)} style={{ marginRight: '1rem', fontSize: '1.1rem', padding: '0.5rem 1rem', backgroundColor: 'red', color: 'white' }}>
         {showAccepted ? 'Hide Accepted Orders' : 'View Accepted Orders'}
       </button>
       <button onClick={() => setShowCleared(prev => !prev)} style={{ backgroundColor: '#007bff', color: 'white', padding: '0.5rem 1rem' }}>
@@ -156,7 +156,7 @@ export default function KitchenDashboard() {
       </button>
 
       {messages.map(msg => (
-        <div key={msg.id} style={{ border: '2px solid #f00', padding: '1rem', marginTop: '1rem', borderRadius: '8px' }}>
+        <div key={msg.id} style={{ border: '2px solid #f00', padding: '1rem', marginTop: '1rem', borderRadius: '8px', backgroundColor: readMessages.has(msg.id) ? '#f8f8f8' : '#fff3cd' }}>
           <h3>Incoming Message</h3>
           <p><strong>Message Date:</strong> {msg['Message Date']}</p>
           <p><strong>Caller Name:</strong> {msg['Caller_Name']}</p>
