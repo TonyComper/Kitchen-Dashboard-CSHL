@@ -39,9 +39,9 @@ export default function KitchenDashboard() {
       setOrders(orderArray);
 
       const newUnseen = orderArray.find(order => !seenOrders.has(order.id) && !accepted.has(order.id));
-      const newMessage = orderArray.find(order => order['Order Type'] === 'MESSAGE' && !readMessages.has(order.id));
+      const newMessage = orderArray.find(order => (order['Order Type'] || '').toUpperCase() === 'MESSAGE' && !readMessages.has(order.id));
 
-      if (newUnseen && newUnseen['Order Type'] !== 'MESSAGE') {
+      if (newUnseen && (newUnseen['Order Type'] || '').toUpperCase() !== 'MESSAGE') {
         setSeenOrders(prev => new Set(prev).add(newUnseen.id));
         triggerAlarm(newUnseen.id);
       }
@@ -126,8 +126,9 @@ export default function KitchenDashboard() {
 
   const messages = orders.filter(order => {
     const isMessage = (order['Order Type'] || '').toUpperCase() === 'MESSAGE';
+    const isPopulated = order['Caller_Name'] || order['Caller_Phone'] || order['Message_Reason'];
     const isCleared = clearedMessages.has(order.id);
-    return showCleared ? isCleared : !isCleared;
+    return isMessage && isPopulated && (showCleared ? isCleared : !isCleared);
   }).sort((a, b) => new Date(b['Message Date']) - new Date(a['Message Date']));
 
   const dailyOrderCount = orders.filter(order => {
@@ -148,7 +149,7 @@ export default function KitchenDashboard() {
       <p><strong>Date:</strong> {formattedDate}</p>
       <p><strong>Orders Today:</strong> {dailyOrderCount}</p>
 
-      <button onClick={() => setShowAccepted(prev => !prev)} style={{ marginRight: '1rem', fontSize: '1.1rem', padding: '0.5rem 1rem', backgroundColor: 'red', color: 'white' }}>
+      <button onClick={() => setShowAccepted(prev => !prev)} style={{ marginRight: '1rem', backgroundColor: 'red', color: 'white', padding: '0.5rem 1rem' }}>
         {showAccepted ? 'Hide Accepted Orders' : 'View Accepted Orders'}
       </button>
       <button onClick={() => setShowCleared(prev => !prev)} style={{ backgroundColor: '#007bff', color: 'white', padding: '0.5rem 1rem' }}>
@@ -156,7 +157,7 @@ export default function KitchenDashboard() {
       </button>
 
       {messages.map(msg => (
-        <div key={msg.id} style={{ border: '2px solid #f00', padding: '1rem', marginTop: '1rem', borderRadius: '8px', backgroundColor: readMessages.has(msg.id) ? '#f8f8f8' : '#fff3cd' }}>
+        <div key={msg.id} style={{ border: '2px solid #f00', backgroundColor: readMessages.has(msg.id) ? '#eee' : '#fffbcc', padding: '1rem', marginTop: '1rem', borderRadius: '8px' }}>
           <h3>Incoming Message</h3>
           <p><strong>Message Date:</strong> {msg['Message Date']}</p>
           <p><strong>Caller Name:</strong> {msg['Caller_Name']}</p>
