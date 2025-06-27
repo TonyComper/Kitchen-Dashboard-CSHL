@@ -1,4 +1,4 @@
-// kitchen-dashboard: Adds elapsed timer for unaccepted orders, shows order count, filters, sound, accepted timestamp, etc. Now includes 'Order Type', 'Delivery Address', and incoming messages section.
+// kitchen-dashboard: Adds orders + messages sections, sounds, timestamps, message filters.
 
 import React, { useEffect, useState, useRef } from 'react';
 
@@ -14,11 +14,11 @@ export default function KitchenDashboard() {
   const [now, setNow] = useState(Date.now());
   const alarmIntervalRef = useRef(null);
   const alarmAudio = useRef(null);
-  const messageAudio = useRef(null);
+  const msgAudio = useRef(null);
 
   useEffect(() => {
     alarmAudio.current = new Audio('/alert.mp3');
-    messageAudio.current = new Audio('/message.mp3');
+    msgAudio.current = new Audio('/message.mp3');
   }, []);
 
   useEffect(() => {
@@ -29,37 +29,43 @@ export default function KitchenDashboard() {
   useEffect(() => {
     if (!audioEnabled) return;
 
-    const fetchOrdersAndMessages = async () => {
-      const [orderRes, messageRes] = await Promise.all([
-        fetch('https://qsr-orders-default-rtdb.firebaseio.com/orders.json'),
-        fetch('https://qsr-orders-default-rtdb.firebaseio.com/messages.json')
-      ]);
-      const orderData = await orderRes.json();
-      const messageData = await messageRes.json();
+    const fetchData = async () => {
+      const res = await fetch('https://qsr-orders-default-rtdb.firebaseio.com/orders.json');
+      const data = await res.json();
 
-      const orderArray = Object.entries(orderData || {}).map(([id, order]) => ({ id, ...order }));
-      orderArray.sort((a, b) => new Date(b['Order Date']) - new Date(a['Order Date']));
-      setOrders(orderArray);
+      const ordersArray = [];
+      const messagesArray = [];
 
-      const messageArray = Object.entries(messageData || {}).map(([id, msg]) => ({ id, ...msg }));
-      messageArray.sort((a, b) => new Date(b['Message Date']) - new Date(a['Message Date']));
-      setMessages(messageArray);
+      Object.entries(data || {}).forEach(([id, item]) => {
+        const entry = { id, ...item };
+        if (!entry["Order ID"] && !entry["Order Items"]) {
+          messagesArray.push(entry);
+        } else {
+          ordersArray.push(entry);
+        }
+      });
 
-      const newOrder = orderArray.find(order => !seenOrders.has(order.id) && !accepted.has(order.id));
-      if (newOrder) {
-        setSeenOrders(prev => new Set(prev).add(newOrder.id));
-        triggerAlarm(newOrder.id);
+      ordersArray.sort((a, b) => new Date(b['Order Date']) - new Date(a['Order Date']));
+      messagesArray.sort((a, b) => new Date(b['Message Date']) - new Date(a['Message Date']));
+
+      setOrders(ordersArray);
+      setMessages(messagesArray);
+
+      const newUnseenOrder = ordersArray.find(order => !seenOrders.has(order.id) && !accepted.has(order.id));
+      if (newUnseenOrder) {
+        setSeenOrders(prev => new Set(prev).add(newUnseenOrder.id));
+        triggerAlarm(newUnseenOrder.id);
       }
 
-      const newMessage = messageArray.find(msg => !seenMessages.has(msg.id));
-      if (newMessage) {
-        setSeenMessages(prev => new Set(prev).add(newMessage.id));
-        messageAudio.current.play();
+      const newUnseenMsg = messagesArray.find(msg => !seenMessages.has(msg.id));
+      if (newUnseenMsg) {
+        setSeenMessages(prev => new Set(prev).add(newUnseenMsg.id));
+        msgAudio.current.play();
       }
     };
 
-    fetchOrdersAndMessages();
-    const interval = setInterval(fetchOrdersAndMessages, 5000);
+    fetchData();
+    const interval = setInterval(fetchData, 5000);
     return () => clearInterval(interval);
   }, [audioEnabled, accepted, seenOrders, seenMessages]);
 
@@ -80,8 +86,7 @@ export default function KitchenDashboard() {
       return updated;
     });
     await fetch(`https://qsr-orders-default-rtdb.firebaseio.com/orders/${id}.json`, {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
+      method: 'PATCH', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ "Accepted At": timestamp })
     });
     clearInterval(alarmIntervalRef.current);
@@ -119,18 +124,15 @@ export default function KitchenDashboard() {
     );
   };
 
-  const displayedOrders = orders
-    .filter(order => showAccepted ? accepted.has(order.id) && isTodayOrYesterday(order['Order Date']) : !accepted.has(order.id))
-    .sort((a, b) => new Date(b['Order Date']) - new Date(a['Order Date']));
-
-  const displayedMessages = messages
-    .filter(msg => isTodayOrYesterday(msg['Message Date']))
-    .sort((a, b) => new Date(b['Message Date']) - new Date(a['Message Date']));
-
-  const formattedDate = today.toLocaleDateString('en-US', {
-    weekday: 'long', year: 'numeric', month: 'long', day: 'numeric'
+  const displayedOrders = orders.filter(order => {
+    const isAccepted = accepted.has(order.id);
+    const isInDateRange = isTodayOrYesterday(order['Order Date']);
+    return showAccepted ? isAccepted && isInDateRange : !isAccepted;
   });
 
+  const displayedMessages = messages.filter(msg => isTodayOrYesterday(msg['Message Date']));
+
+  const formattedDate = today.toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
   const dailyOrderCount = orders.filter(order => new Date(order['Order Date']).toDateString() === today.toDateString()).length;
 
   const getElapsedTime = (dateStr) => {
@@ -154,11 +156,11 @@ export default function KitchenDashboard() {
           <div key={order.id} style={{ border: '1px solid #ccc', padding: '1.5rem', borderRadius: '8px', fontSize: '1.2rem' }}>
             <h2>Order #{order["Order ID"]}</h2>
             <p><strong>Customer:</strong> {order["Customer Name"]}</p>
-            <p><strong>Order Type:</strong> {order["Order Type"] || order.Order_Type || 'N/A'}</p>
-            {(order["Order Type"] || order.Order_Type)?.toLowerCase() === 'delivery' && (
-              <p><strong>Delivery Address:</strong> {order["Delivery Address"] || order.Delivery_Address || order.delivery_address || 'N/A'}</p>
+            <p><strong>Order Type:</strong> {order["Order Type"] || 'N/A'}</p>
+            {order["Order Type"]?.toLowerCase() === 'delivery' && (
+              <p><strong>Delivery Address:</strong> {order["Delivery Address"] || 'N/A'}</p>
             )}
-            <p><strong>Order Date:</strong> {order["Order Date"] || 'Not provided'}</p>
+            <p><strong>Order Date:</strong> {order["Order Date"]}</p>
             {showAccepted && order["Accepted At"] && (
               <p style={{ color: 'green', fontWeight: 'bold' }}><strong>Accepted At:</strong> {new Date(order["Accepted At"]).toLocaleString()}</p>
             )}
@@ -167,9 +169,7 @@ export default function KitchenDashboard() {
             )}
             <p style={{ color: 'red', fontWeight: 'bold' }}><strong>Pickup Time:</strong> {order["Pickup Time"]}</p>
             <p><strong>Total:</strong> {order["Total Price"]}</p>
-            <ul>
-              {order["Order Items"].split(',').map((item, i) => <li key={i}>{item.trim()}</li>)}
-            </ul>
+            <ul>{order["Order Items"].split(',').map((item, i) => <li key={i}>{item.trim()}</li>)}</ul>
             {!accepted.has(order.id) && (
               <button onClick={() => acceptOrder(order.id)} style={{ marginTop: '1rem', backgroundColor: '#28a745', color: 'white', padding: '0.5rem 1rem', border: 'none', borderRadius: '4px' }}>
                 ACCEPT
@@ -179,18 +179,18 @@ export default function KitchenDashboard() {
         ))}
       </div>
 
-      <h2 style={{ marginTop: '2rem' }}>Incoming Messages</h2>
+      <h2 style={{ marginTop: '3rem' }}>Incoming Messages</h2>
       <div style={{ display: 'grid', gap: '1rem' }}>
         {displayedMessages.map(msg => (
-          <div key={msg.id} style={{ border: '1px solid #aaa', padding: '1rem', borderRadius: '8px', backgroundColor: '#f9f9f9' }}>
-            <p><strong>Date:</strong> {msg["Message Date"]}</p>
-            <p><strong>Name:</strong> {msg["Customer Name"]}</p>
-            <p><strong>Phone:</strong> {msg["Customer Contact Number"]}</p>
-            <p><strong>Reason:</strong> {msg["Message Reason"]}</p>
+          <div key={msg.id} style={{ border: '1px solid #aaa', padding: '1rem', borderRadius: '8px', backgroundColor: '#f8f8f8' }}>
+            <p><strong>Date:</strong> {msg["Message Date"] || 'N/A'}</p>
+            <p><strong>Name:</strong> {msg["Customer Name"] || 'N/A'}</p>
+            <p><strong>Phone:</strong> {msg["Customer Contact Number"] || 'N/A'}</p>
+            <p><strong>Reason:</strong> {msg["Reason"] || 'N/A'}</p>
             {!readMessages.has(msg.id) ? (
-              <button onClick={() => markMessageRead(msg.id)} style={{ backgroundColor: 'red', color: 'white', padding: '0.5rem', borderRadius: '4px' }}>READ MESSAGE</button>
+              <button onClick={() => markMessageRead(msg.id)} style={{ backgroundColor: 'red', color: 'white', border: 'none', padding: '0.4rem 0.8rem', marginTop: '0.5rem' }}>READ MESSAGE</button>
             ) : (
-              <button disabled style={{ backgroundColor: 'green', color: 'white', padding: '0.5rem', borderRadius: '4px' }}>READ</button>
+              <button style={{ backgroundColor: 'green', color: 'white', border: 'none', padding: '0.4rem 0.8rem', marginTop: '0.5rem' }}>READ</button>
             )}
           </div>
         ))}
