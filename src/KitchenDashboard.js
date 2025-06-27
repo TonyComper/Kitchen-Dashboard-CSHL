@@ -1,3 +1,7 @@
+// kitchen-dashboard: Includes order and message tracking with alerts, acceptance handling, and UI for current/previous day
+
+import React, { useEffect, useState, useRef } from 'react';
+
 export default function KitchenDashboard() {
   const [orders, setOrders] = useState([]);
   const [accepted, setAccepted] = useState(new Set(JSON.parse(localStorage.getItem('acceptedOrders') || '[]')));
@@ -137,60 +141,64 @@ export default function KitchenDashboard() {
         {showAccepted ? 'Hide Accepted Orders' : 'View Accepted Orders'}
       </button>
 
-      {displayedOrders.map(order => {
-        // Check if Order ID is empty or null, meaning it's a "Message" order
-        if (!order['Order ID']) {
-          return (
+      {displayedOrders.map(order => (
+        <div key={order.id} style={{ border: '1px solid #ccc', padding: '1.5rem', borderRadius: '8px', fontSize: '1.2rem' }}>
+          <h2>Order #{order['Order ID']}</h2>
+          <p><strong>Customer:</strong> {order['Customer Name']}</p>
+          <p><strong>Order Type:</strong> {order['Order Type'] || order.Order_Type || 'N/A'}</p>
+          {(order['Order Type'] || order.Order_Type)?.toLowerCase() === 'delivery' && (
+            <p><strong>Delivery Address:</strong> {order['Delivery Address'] || order.Delivery_Address || order.delivery_address || 'N/A'}</p>
+          )}
+          <p><strong>Order Date:</strong> {order['Order Date'] || 'Not provided'}</p>
+          {showAccepted && order['Accepted At'] && (
+            <p style={{ color: 'green', fontWeight: 'bold' }}><strong>Accepted At:</strong> {new Date(order['Accepted At']).toLocaleString()}</p>
+          )}
+          {!showAccepted && order['Order Date'] && (
+            <p><strong>Elapsed Time:</strong> <span style={{ color: 'goldenrod' }}>{getElapsedTime(order['Order Date'])}</span></p>
+          )}
+          <p style={{ color: 'red', fontWeight: 'bold' }}><strong>Pickup Time:</strong> {order['Pickup Time']}</p>
+          <p><strong>Total:</strong> {order['Total Price']}</p>
+          <ul>
+            {order['Order Items'].split(',').map((item, index) => (
+              <li key={index}>{item.trim()}</li>
+            ))}
+          </ul>
+          {!accepted.has(order.id) && (
+            <button onClick={() => acceptOrder(order.id)} style={{ marginTop: '1rem', backgroundColor: '#28a745', color: 'white', padding: '0.5rem 1rem', border: 'none', borderRadius: '4px' }}>
+              ACCEPT
+            </button>
+          )}
+        </div>
+      ))}
+
+      {messageOrders.length > 0 && (
+        <>
+          <h2 style={{ marginTop: '2rem' }}>Incoming Messages</h2>
+          {messageOrders.map(order => (
             <div key={order.id} style={{ border: '2px dashed #888', padding: '1rem', borderRadius: '8px', marginTop: '1rem', backgroundColor: '#fefefe' }}>
-              <h2>Message</h2>
               <p><strong>Message Date:</strong> {order['Message Date']}</p>
               <p><strong>From:</strong> {order.Caller_Name}</p>
               <p><strong>Phone:</strong> {order.Caller_Phone}</p>
               <p><strong>Reason:</strong> {order.Message_Reason}</p>
-              <button onClick={() => {
-                setSeenMessages(prev => {
-                  const updated = new Set(prev).add(order.id);
-                  localStorage.setItem('seenMessages', JSON.stringify(Array.from(updated)));
-                  return updated;
-                });
-              }} style={{ backgroundColor: '#dc3545', color: 'white', padding: '0.5rem 1rem', border: 'none', borderRadius: '4px' }}>
-                READ MESSAGE
-              </button>
+              {seenMessages.has(order.id) ? (
+                <button disabled style={{ backgroundColor: '#28a745', color: 'white', padding: '0.5rem 1rem', border: 'none', borderRadius: '4px' }}>
+                  READ
+                </button>
+              ) : (
+                <button onClick={() => {
+                  setSeenMessages(prev => {
+                    const updated = new Set(prev).add(order.id);
+                    localStorage.setItem('seenMessages', JSON.stringify(Array.from(updated)));
+                    return updated;
+                  });
+                }} style={{ backgroundColor: '#dc3545', color: 'white', padding: '0.5rem 1rem', border: 'none', borderRadius: '4px' }}>
+                  READ MESSAGE
+                </button>
+              )}
             </div>
-          );
-        }
-
-        // If it's an order with an ID, display order details
-        return (
-          <div key={order.id} style={{ border: '1px solid #ccc', padding: '1.5rem', borderRadius: '8px', fontSize: '1.2rem' }}>
-            <h2>Order #{order['Order ID']}</h2>
-            <p><strong>Customer:</strong> {order['Customer Name']}</p>
-            <p><strong>Order Type:</strong> {order['Order Type'] || order.Order_Type || 'N/A'}</p>
-            {(order['Order Type'] || order.Order_Type)?.toLowerCase() === 'delivery' && (
-              <p><strong>Delivery Address:</strong> {order['Delivery Address'] || order.Delivery_Address || order.delivery_address || 'N/A'}</p>
-            )}
-            <p><strong>Order Date:</strong> {order['Order Date'] || 'Not provided'}</p>
-            {showAccepted && order['Accepted At'] && (
-              <p style={{ color: 'green', fontWeight: 'bold' }}><strong>Accepted At:</strong> {new Date(order['Accepted At']).toLocaleString()}</p>
-            )}
-            {!showAccepted && order['Order Date'] && (
-              <p><strong>Elapsed Time:</strong> <span style={{ color: 'goldenrod' }}>{getElapsedTime(order['Order Date'])}</span></p>
-            )}
-            <p style={{ color: 'red', fontWeight: 'bold' }}><strong>Pickup Time:</strong> {order['Pickup Time']}</p>
-            <p><strong>Total:</strong> {order['Total Price']}</p>
-            <ul>
-              {order['Order Items'].split(',').map((item, index) => (
-                <li key={index}>{item.trim()}</li>
-              ))}
-            </ul>
-            {!accepted.has(order.id) && (
-              <button onClick={() => acceptOrder(order.id)} style={{ marginTop: '1rem', backgroundColor: '#28a745', color: 'white', padding: '0.5rem 1rem', border: 'none', borderRadius: '4px' }}>
-                ACCEPT
-              </button>
-            )}
-          </div>
-        );
-      })}
+          ))}
+        </>
+      )}
     </div>
   );
 }
