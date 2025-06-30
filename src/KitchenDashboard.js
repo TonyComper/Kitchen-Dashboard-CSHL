@@ -132,7 +132,7 @@ export default function KitchenDashboard() {
 
   return (
     <div style={{ padding: '1rem', fontFamily: 'Arial' }}>
-      <h1>Orders Dashboard</h1>
+      <h1>Orders and Messages - California Sandwiches Winston Churchill</h1>
       <p><strong>Date:</strong> {formattedDate}</p>
       <p><strong>Orders Today:</strong> {dailyOrderCount}</p>
 
