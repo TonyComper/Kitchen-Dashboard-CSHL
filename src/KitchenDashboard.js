@@ -42,7 +42,7 @@ export default function KitchenDashboard() {
     }, 10000);
   };
 
-  // Fetch orders and trigger alarm if needed
+  // Fetch orders and always check for alarm trigger
   useEffect(() => {
     if (!audioEnabled) return;
 
@@ -54,15 +54,26 @@ export default function KitchenDashboard() {
       orderArray.sort((a, b) => new Date(b['Order Date']) - new Date(a['Order Date']));
       setOrders(orderArray);
 
+      // Mark unseen orders
       const newUnseenOrder = orderArray.find(order =>
         !seenOrders.has(order.id) &&
         !accepted.has(order.id) &&
         order['Order Items']
       );
-
       if (newUnseenOrder) {
         setSeenOrders(prev => new Set(prev).add(newUnseenOrder.id));
-        triggerGlobalAlarm(); // kick off alarm
+      }
+
+      // 🔥 Always check if alarm should run or stop
+      const hasUnaccepted = orderArray.some(order =>
+        (order['Order Type'] === 'PICK UP' || order['Order Type'] === 'DELIVERY') &&
+        !accepted.has(order.id)
+      );
+      if (hasUnaccepted) {
+        triggerGlobalAlarm();
+      } else if (alarmIntervalRef.current) {
+        clearInterval(alarmIntervalRef.current);
+        alarmIntervalRef.current = null;
       }
     };
 
