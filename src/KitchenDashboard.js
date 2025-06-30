@@ -1,4 +1,4 @@
-// kitchen-dashboard: Adds message alerts, toggles, read/clear buttons, order filtering, etc. Now filters blank non-message entries
+// kitchen-dashboard: Adds message alerts, toggles, read/clear buttons, order filtering, etc.
 
 import React, { useEffect, useState, useRef } from 'react';
 
@@ -99,7 +99,7 @@ export default function KitchenDashboard() {
   if (!audioEnabled) {
     return (
       <div style={{ padding: '2rem', textAlign: 'center' }}>
-        <h1>Pick Up Orders</h1>
+        <h1>Orders and Messages</h1>
         <p>Please click the button below to start the dashboard and enable sound alerts.</p>
         <button onClick={() => setAudioEnabled(true)} style={{ fontSize: '1.2rem', padding: '0.5rem 1rem' }}>
           Start Dashboard
@@ -126,14 +126,15 @@ export default function KitchenDashboard() {
 
   const messages = orders.filter(order => {
     const isMessage = (order['Order Type'] || '').toUpperCase() === 'MESSAGE';
+    const isPopulated = order['Caller_Name'] || order['Caller_Phone'] || order['Message_Reason'];
     const isCleared = clearedMessages.has(order.id);
-    const hasContent = order['Message Date'] || order['Caller_Name'] || order['Caller_Phone'] || order['Message_Reason'];
-    return isMessage && hasContent && (showCleared ? isCleared : !isCleared);
+    return isMessage && isPopulated && (showCleared ? isCleared : !isCleared);
   }).sort((a, b) => new Date(b['Message Date']) - new Date(a['Message Date']));
 
   const dailyOrderCount = orders.filter(order => {
-    const orderDate = new Date(order['Order Date']);
-    return orderDate.toDateString() === today.toDateString();
+    const rawDate = order['Order Date'];
+    const orderDate = new Date(rawDate);
+    return orderDate.toLocaleDateString() === today.toLocaleDateString();
   }).length;
 
   const getElapsedTime = (dateStr) => {
@@ -157,7 +158,7 @@ export default function KitchenDashboard() {
       </button>
 
       {messages.map(msg => (
-        <div key={msg.id} style={{ border: '2px solid #f00', backgroundColor: '#fff5f5', padding: '1rem', marginTop: '1rem', borderRadius: '8px' }}>
+        <div key={msg.id} style={{ border: '2px solid #f00', backgroundColor: readMessages.has(msg.id) ? '#eee' : '#fffbcc', padding: '1rem', marginTop: '1rem', borderRadius: '8px' }}>
           <h3>Incoming Message</h3>
           <p><strong>Message Date:</strong> {msg['Message Date']}</p>
           <p><strong>Caller Name:</strong> {msg['Caller_Name']}</p>
