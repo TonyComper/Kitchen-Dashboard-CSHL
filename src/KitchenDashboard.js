@@ -115,13 +115,14 @@ export default function KitchenDashboard() {
 
   // Mark message as read and move it to cleared messages
   const markMessageRead = (id) => {
-    // Mark as read in both sets and localStorage
+    console.log(`Marking message ${id} as read`);
     setReadMessages(prev => {
       const updated = new Set(prev).add(id);
       localStorage.setItem('readMessages', JSON.stringify(Array.from(updated)));
       return updated;
     });
 
+    // Add to cleared messages
     setClearedMessages(prev => {
       const updated = new Set(prev).add(id);
       localStorage.setItem('clearedMessages', JSON.stringify(Array.from(updated)));
@@ -133,7 +134,9 @@ export default function KitchenDashboard() {
       messageAudio.current.pause();
       messageAudio.current.currentTime = 0; // Reset the audio
     }
-    clearInterval(alarmIntervalRef.current); // Stop alarm when message is read
+
+    // Stop alarm for this message
+    clearInterval(alarmIntervalRef.current);
   };
 
   // Clear a message
@@ -149,7 +152,7 @@ export default function KitchenDashboard() {
   if (!audioEnabled) {
     return (
       <div style={{ padding: '2rem', textAlign: 'center' }}>
-        <h1>Orders and Messages</h1>
+        <h1>Orders and Messages 2</h1>
         <p>Please click the button below to start the dashboard and enable sound alerts.</p>
         <button onClick={() => setAudioEnabled(true)} style={{ fontSize: '1.2rem', padding: '0.5rem 1rem' }}>
           Start Dashboard
