@@ -5,7 +5,7 @@ export default function KitchenDashboard() {
   const [accepted, setAccepted] = useState(new Set(JSON.parse(localStorage.getItem('acceptedOrders') || '[]')));
   const [seenOrders, setSeenOrders] = useState(new Set());
   const [audioEnabled, setAudioEnabled] = useState(false);
-  const [showAccepted, setShowAccepted] = useState(false);
+  const [showAccepted, setShowAccepted] = useState(false); // state to toggle between accepted and pending orders
   const [now, setNow] = useState(Date.now());
   const [readMessages, setReadMessages] = useState(new Set(JSON.parse(localStorage.getItem('readMessages') || '[]')));
   const [clearedMessages, setClearedMessages] = useState(new Set(JSON.parse(localStorage.getItem('clearedMessages') || '[]')));
@@ -113,7 +113,7 @@ export default function KitchenDashboard() {
 
   // Get today's date in 'YYYY-MM-DD' format
   const todayStr = formatDate(today);
-  
+
   // Calculate orders today count
   const dailyOrderCount = orders.filter(order => {
     const orderDate = new Date(order['Order Date']);
@@ -124,14 +124,20 @@ export default function KitchenDashboard() {
   // Calculate elapsed time since order
   const getElapsedTime = (dateStr) => {
     const orderDate = new Date(dateStr);
+    if (isNaN(orderDate)) return "Invalid date"; // Handle edge case if order date is invalid
     const elapsed = now - orderDate; // Ensure time difference from now
-    if (isNaN(elapsed)) return "Invalid date"; // Handle edge case if date is invalid
     const minutes = Math.floor(elapsed / 60000);
     const seconds = Math.floor((elapsed % 60000) / 1000);
     return `${minutes}m ${seconds}s ago`;
   };
 
   const formattedDate = today.toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+
+  const displayedOrders = orders.filter(order => {
+    const isAcceptedOrder = accepted.has(order.id);
+    const isInDateRange = formatDate(new Date(order['Order Date'])) === todayStr;
+    return showAccepted ? isAcceptedOrder && isInDateRange : !isAcceptedOrder && isInDateRange;
+  }).sort((a, b) => new Date(b['Order Date']) - new Date(a['Order Date']));
 
   return (
     <div style={{ padding: '1rem', fontFamily: 'Arial' }}>
@@ -165,7 +171,7 @@ export default function KitchenDashboard() {
 
       <div style={{ display: 'grid', gap: '1rem', marginTop: '2rem' }}>
         {/* Displaying orders */}
-        {orders.filter(order => order['Order Type'] !== 'MESSAGE').map(order => (
+        {displayedOrders.map(order => (
           <div key={order.id} style={{ border: '1px solid #ccc', padding: '1.5rem', borderRadius: '8px', fontSize: '1.2rem' }}>
             <h2>Order #{order['Order ID']}</h2>
             <p><strong>Customer:</strong> {order['Customer Name']}</p>
