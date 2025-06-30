@@ -117,17 +117,24 @@ export default function KitchenDashboard() {
   const markMessageRead = (id) => {
     console.log(`Marking message ${id} as read`);
 
-    // Update readMessages and clearedMessages arrays
+    // Update readMessages array (add message id if not already read)
     setReadMessages(prev => {
-      const updated = [...prev, id]; // Add to readMessages array
-      localStorage.setItem('readMessages', JSON.stringify(updated));
-      return updated;
+      if (!prev.includes(id)) {
+        const updated = [...prev, id]; // Add to readMessages array
+        localStorage.setItem('readMessages', JSON.stringify(updated));
+        return updated;
+      }
+      return prev;
     });
 
+    // Update clearedMessages array, only add if not already in clearedMessages
     setClearedMessages(prev => {
-      const updated = [...prev, id]; // Add to clearedMessages array
-      localStorage.setItem('clearedMessages', JSON.stringify(updated));
-      return updated;
+      if (!prev.includes(id)) {
+        const updated = [...prev, id]; // Add to clearedMessages array
+        localStorage.setItem('clearedMessages', JSON.stringify(updated));
+        return updated;
+      }
+      return prev;
     });
 
     // Stop message audio alert when the message is read
@@ -162,7 +169,7 @@ export default function KitchenDashboard() {
   if (!audioEnabled) {
     return (
       <div style={{ padding: '2rem', textAlign: 'center' }}>
-        <h1>Orders and Messages</h1>
+        <h1>Orders and Messages 2</h1>
         <p>Please click the button below to start the dashboard and enable sound alerts.</p>
         <button onClick={() => setAudioEnabled(true)} style={{ fontSize: '1.2rem', padding: '0.5rem 1rem' }}>
           Start Dashboard and Enable Audio
@@ -278,4 +285,3 @@ export default function KitchenDashboard() {
     </div>
   );
 }
-
