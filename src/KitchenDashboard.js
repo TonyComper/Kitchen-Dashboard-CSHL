@@ -5,23 +5,42 @@ export default function KitchenDashboard() {
   const [accepted, setAccepted] = useState(new Set(JSON.parse(localStorage.getItem('acceptedOrders') || '[]')));
   const [seenOrders, setSeenOrders] = useState(new Set());
   const [audioEnabled, setAudioEnabled] = useState(false);
-  const [showAccepted, setShowAccepted] = useState(false); // state to toggle between accepted and pending orders
+  const [showAccepted, setShowAccepted] = useState(false);
   const [now, setNow] = useState(Date.now());
   const alarmIntervalRef = useRef(null);
   const alarmAudio = useRef(null);
 
-  // Set audio files for alerts
+  // Set up the alert audio
   useEffect(() => {
     alarmAudio.current = new Audio('/alert.mp3');
   }, []);
 
-  // Update time every second
+  // Update the "now" timestamp every second
   useEffect(() => {
     const timer = setInterval(() => setNow(Date.now()), 1000);
     return () => clearInterval(timer);
   }, []);
 
-  // Fetch orders every 5 seconds
+  // Global alarm loop — runs every 10s until all orders are accepted
+  const triggerGlobalAlarm = () => {
+    if (alarmIntervalRef.current) return; // Prevent multiple loops
+    alarmIntervalRef.current = setInterval(() => {
+      const hasUnacceptedOrders = orders.some(order =>
+        (order['Order Type'] === 'PICK UP' || order['Order Type'] === 'DELIVERY') &&
+        !accepted.has(order.id)
+      );
+      if (hasUnacceptedOrders) {
+        console.log("🔔 Playing alert.mp3 — unaccepted order exists");
+        alarmAudio.current.play();
+      } else {
+        console.log("✅ All orders accepted — stopping alarm");
+        clearInterval(alarmIntervalRef.current);
+        alarmIntervalRef.current = null;
+      }
+    }, 10000);
+  };
+
+  // Fetch orders and trigger alarm if needed
   useEffect(() => {
     if (!audioEnabled) return;
 
@@ -33,41 +52,29 @@ export default function KitchenDashboard() {
       orderArray.sort((a, b) => new Date(b['Order Date']) - new Date(a['Order Date']));
       setOrders(orderArray);
 
-      // Check for new unseen orders
-      const newUnseenOrder = orderArray.find(order => !seenOrders.has(order.id) && !accepted.has(order.id) && order['Order Items']);
+      const newUnseenOrder = orderArray.find(order =>
+        !seenOrders.has(order.id) &&
+        !accepted.has(order.id) &&
+        order['Order Items']
+      );
+
       if (newUnseenOrder) {
         setSeenOrders(prev => new Set(prev).add(newUnseenOrder.id));
-        triggerAlarm(newUnseenOrder.id, newUnseenOrder['Order Type']); // Trigger alarm when a new order is found
+        triggerGlobalAlarm(); // start or continue global alarm loop
       }
     };
 
     fetchOrders();
     const interval = setInterval(fetchOrders, 5000);
     return () => clearInterval(interval);
-  }, [audioEnabled]);
-
-  // Trigger alarm for new orders
-  const triggerAlarm = (orderId, orderType) => {
-    console.log("Triggering alarm for order:", orderId); // Debugging: Check if the alarm is triggered
-    if (alarmIntervalRef.current) clearInterval(alarmIntervalRef.current);
-    alarmIntervalRef.current = setInterval(() => {
-      if (orderType === 'PICK UP' || orderType === 'DELIVERY') {
-        if (!accepted.has(orderId)) {
-          console.log("Playing alarm sound"); // Debugging: Check if the alarm sound is played
-          alarmAudio.current.play();
-        } else {
-          clearInterval(alarmIntervalRef.current);
-        }
-      }
-    }, 10000); // Repeats every 10 seconds
-  };
+  }, [audioEnabled, accepted, seenOrders]);
 
   // Accept an order
   const acceptOrder = async (id) => {
     const timestamp = new Date().toISOString();
     setAccepted(prev => {
-      const updated = new Set(prev).add(id); // Add order to accepted set
-      localStorage.setItem('acceptedOrders', JSON.stringify(Array.from(updated))); // Save accepted orders to localStorage
+      const updated = new Set(prev).add(id);
+      localStorage.setItem('acceptedOrders', JSON.stringify(Array.from(updated)));
       return updated;
     });
     await fetch(`https://qsr-orders-default-rtdb.firebaseio.com/orders/${id}.json`, {
@@ -75,16 +82,15 @@ export default function KitchenDashboard() {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ "Accepted At": timestamp })
     });
-    clearInterval(alarmIntervalRef.current); // Stop alarm when order is accepted
   };
 
-  // Only display orders if audio is enabled
+  // Prompt user to enable sound and dashboard
   if (!audioEnabled) {
     return (
       <div style={{ padding: '2rem', textAlign: 'center' }}>
         <h1>Orders and Messages Dashboard</h1>
         <p>Please click the button below to start the dashboard and enable sound alerts.</p>
-        <p>(c) 2025 RT7 USA Incorporated.  All rights reseverd.</p>
+        <p>(c) 2025 RT7 USA Incorporated. All rights reserved.</p>
         <button onClick={() => setAudioEnabled(true)} style={{ fontSize: '1.2rem', padding: '0.5rem 1rem' }}>
           Start Dashboard
         </button>
@@ -93,36 +99,29 @@ export default function KitchenDashboard() {
   }
 
   const today = new Date();
-  const yesterday = new Date();
-  yesterday.setDate(today.getDate() - 1);
-
-  // Function to format date to 'YYYY-MM-DD' for reliable comparison
   const formatDate = (date) => {
     const d = new Date(date);
     return `${d.getFullYear()}-${(d.getMonth() + 1).toString().padStart(2, '0')}-${d.getDate().toString().padStart(2, '0')}`;
   };
-
-  // Get today's date in 'YYYY-MM-DD' format
   const todayStr = formatDate(today);
 
-  // Calculate orders today count
   const dailyOrderCount = orders.filter(order => {
-    const orderDate = new Date(order['Order Date']);
-    const formattedOrderDate = formatDate(orderDate); // Format the order date to compare
-    return formattedOrderDate === todayStr; // Compare only the date part
+    const formattedOrderDate = formatDate(new Date(order['Order Date']));
+    return formattedOrderDate === todayStr;
   }).length;
 
-  // Calculate elapsed time since order
   const getElapsedTime = (dateStr) => {
     const orderDate = new Date(dateStr);
-    if (isNaN(orderDate)) return "Invalid date"; // Handle edge case if order date is invalid
-    const elapsed = now - orderDate; // Ensure time difference from now
+    if (isNaN(orderDate)) return "Invalid date";
+    const elapsed = now - orderDate;
     const minutes = Math.floor(elapsed / 60000);
     const seconds = Math.floor((elapsed % 60000) / 1000);
     return `${minutes}m ${seconds}s ago`;
   };
 
-  const formattedDate = today.toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+  const formattedDate = today.toLocaleDateString('en-US', {
+    weekday: 'long', year: 'numeric', month: 'long', day: 'numeric'
+  });
 
   const displayedOrders = orders.filter(order => {
     const isAcceptedOrder = accepted.has(order.id);
@@ -141,13 +140,14 @@ export default function KitchenDashboard() {
       </button>
 
       <div style={{ display: 'grid', gap: '1rem', marginTop: '2rem' }}>
-        {/* Displaying orders */}
         {displayedOrders.map(order => (
           <div key={order.id} style={{ border: '1px solid #ccc', padding: '1.5rem', borderRadius: '8px', fontSize: '1.2rem' }}>
             <h2>Order #{order['Order ID']}</h2>
             <p><strong>Customer:</strong> {order['Customer Name']}</p>
             <p><strong>Order Type:</strong> {order['Order Type'] || 'N/A'}</p>
-            {order['Order Type']?.toLowerCase() === 'delivery' && <p><strong>Delivery Address:</strong> {order['Delivery Address']}</p>}
+            {order['Order Type']?.toLowerCase() === 'delivery' && (
+              <p><strong>Delivery Address:</strong> {order['Delivery Address']}</p>
+            )}
             <p><strong>Order Date:</strong> {order['Order Date']}</p>
             {showAccepted && order['Accepted At'] && (
               <p style={{ color: 'green', fontWeight: 'bold' }}><strong>Accepted At:</strong> {new Date(order['Accepted At']).toLocaleString()}</p>
