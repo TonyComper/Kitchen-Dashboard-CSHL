@@ -148,7 +148,7 @@ export default function KitchenDashboard() {
   if (!audioEnabled) {
     return (
       <div style={{ padding: '2rem', textAlign: 'center' }}>
-        <h1>Orders and Messages</h1>
+        <h1>Orders and Messages 1</h1>
         <p>Please click the button below to start the dashboard and enable sound alerts.</p>
         <button onClick={() => setAudioEnabled(true)} style={{ fontSize: '1.2rem', padding: '0.5rem 1rem' }}>
           Start Dashboard
