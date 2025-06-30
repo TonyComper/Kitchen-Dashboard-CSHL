@@ -1,5 +1,3 @@
-// kitchen-dashboard: Adds message alerts, toggles, read/clear buttons, order filtering, etc.
-
 import React, { useEffect, useState, useRef } from 'react';
 
 export default function KitchenDashboard() {
@@ -16,23 +14,25 @@ export default function KitchenDashboard() {
   const alarmAudio = useRef(null);
   const messageAudio = useRef(null);
 
+  // Set audio files for alerts
   useEffect(() => {
     alarmAudio.current = new Audio('/alert.mp3');
     messageAudio.current = new Audio('/message-alert.mp3');
   }, []);
 
+  // Update time every second
   useEffect(() => {
     const timer = setInterval(() => setNow(Date.now()), 1000);
     return () => clearInterval(timer);
   }, []);
 
+  // Fetch orders and messages every 5 seconds
   useEffect(() => {
     if (!audioEnabled) return;
 
     const fetchOrders = async () => {
       const res = await fetch('https://qsr-orders-default-rtdb.firebaseio.com/orders.json');
       const data = await res.json();
-
       const orderArray = Object.entries(data || {}).map(([id, order]) => ({ id, ...order }));
 
       orderArray.sort((a, b) => new Date(b['Order Date']) - new Date(a['Order Date']));
@@ -56,6 +56,7 @@ export default function KitchenDashboard() {
     return () => clearInterval(interval);
   }, [audioEnabled, accepted, seenOrders, readMessages]);
 
+  // Trigger alarm for unseen orders
   const triggerAlarm = (orderId) => {
     if (alarmIntervalRef.current) clearInterval(alarmIntervalRef.current);
     alarmIntervalRef.current = setInterval(() => {
@@ -65,6 +66,7 @@ export default function KitchenDashboard() {
     alarmAudio.current.play();
   };
 
+  // Accept an order
   const acceptOrder = async (id) => {
     const timestamp = new Date().toISOString();
     setAccepted(prev => {
@@ -80,6 +82,7 @@ export default function KitchenDashboard() {
     clearInterval(alarmIntervalRef.current);
   };
 
+  // Mark message as read
   const markMessageRead = (id) => {
     setReadMessages(prev => {
       const updated = new Set(prev).add(id);
@@ -88,6 +91,7 @@ export default function KitchenDashboard() {
     });
   };
 
+  // Clear a message
   const clearMessage = (id) => {
     setClearedMessages(prev => {
       const updated = new Set(prev).add(id);
@@ -96,6 +100,7 @@ export default function KitchenDashboard() {
     });
   };
 
+  // Only display orders if audio is enabled
   if (!audioEnabled) {
     return (
       <div style={{ padding: '2rem', textAlign: 'center' }}>
@@ -111,19 +116,27 @@ export default function KitchenDashboard() {
   const today = new Date();
   const yesterday = new Date();
   yesterday.setDate(today.getDate() - 1);
+
+  // Utility to check if a date is from today or yesterday
   const isTodayOrYesterday = (dateStr) => {
     const date = new Date(dateStr);
-    return date.toDateString() === today.toDateString() || date.toDateString() === yesterday.toDateString();
+
+    const todayStr = today.toLocaleDateString(); // Ensure consistent format
+    const yesterdayStr = yesterday.toLocaleDateString(); // Ensure consistent format
+    
+    return date.toLocaleDateString() === todayStr || date.toLocaleDateString() === yesterdayStr;
   };
 
   const formattedDate = today.toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
 
+  // Filter orders for "Orders Today"
   const displayedOrders = orders.filter(order => {
     const isAccepted = accepted.has(order.id);
     const isInDateRange = isTodayOrYesterday(order['Order Date']);
     return order['Order Type'] !== 'MESSAGE' && (showAccepted ? isAccepted && isInDateRange : !isAccepted);
   }).sort((a, b) => new Date(b['Order Date']) - new Date(a['Order Date']));
 
+  // Filter messages
   const messages = orders.filter(order => {
     const isMessage = (order['Order Type'] || '').toUpperCase() === 'MESSAGE';
     const isPopulated = order['Caller_Name'] || order['Caller_Phone'] || order['Message_Reason'];
@@ -131,12 +144,14 @@ export default function KitchenDashboard() {
     return isMessage && isPopulated && (showCleared ? isCleared : !isCleared);
   }).sort((a, b) => new Date(b['Message Date']) - new Date(a['Message Date']));
 
+  // Calculate orders today count
   const dailyOrderCount = orders.filter(order => {
     const rawDate = order['Order Date'];
     const orderDate = new Date(rawDate);
     return orderDate.toLocaleDateString() === today.toLocaleDateString();
   }).length;
 
+  // Calculate elapsed time since order
   const getElapsedTime = (dateStr) => {
     const elapsed = now - new Date(dateStr);
     const minutes = Math.floor(elapsed / 60000);
@@ -157,6 +172,7 @@ export default function KitchenDashboard() {
         {showCleared ? 'Hide Cleared Messages' : 'View Cleared Messages'}
       </button>
 
+      {/* Displaying messages */}
       {messages.map(msg => (
         <div key={msg.id} style={{ border: '2px solid #f00', backgroundColor: readMessages.has(msg.id) ? '#eee' : '#fffbcc', padding: '1rem', marginTop: '1rem', borderRadius: '8px' }}>
           <h3>Incoming Message</h3>
@@ -174,6 +190,7 @@ export default function KitchenDashboard() {
       ))}
 
       <div style={{ display: 'grid', gap: '1rem', marginTop: '2rem' }}>
+        {/* Displaying orders */}
         {displayedOrders.map(order => (
           <div key={order.id} style={{ border: '1px solid #ccc', padding: '1.5rem', borderRadius: '8px', fontSize: '1.2rem' }}>
             <h2>Order #{order['Order ID']}</h2>
