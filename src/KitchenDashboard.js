@@ -5,7 +5,7 @@ export default function KitchenDashboard() {
   const [accepted, setAccepted] = useState(new Set(JSON.parse(localStorage.getItem('acceptedOrders') || '[]')));
   const [seenOrders, setSeenOrders] = useState(new Set());
   const [audioEnabled, setAudioEnabled] = useState(false);
-  const [showAccepted, setShowAccepted] = useState(false); // state to toggle between accepted and pending orders
+  const [showAccepted, setShowAccepted] = useState(false);
   const [now, setNow] = useState(Date.now());
   const [readMessages, setReadMessages] = useState(new Set(JSON.parse(localStorage.getItem('readMessages') || '[]')));
   const [clearedMessages, setClearedMessages] = useState(new Set(JSON.parse(localStorage.getItem('clearedMessages') || '[]')));
@@ -37,6 +37,24 @@ export default function KitchenDashboard() {
 
       orderArray.sort((a, b) => new Date(b['Order Date']) - new Date(a['Order Date']));
       setOrders(orderArray);
+
+      // Check for new unseen orders
+      const newUnseenOrder = orderArray.find(order => !seenOrders.has(order.id) && !accepted.has(order.id) && order['Order Items']);
+      if (newUnseenOrder) {
+        setSeenOrders(prev => new Set(prev).add(newUnseenOrder.id));
+        triggerAlarm(newUnseenOrder.id); // Trigger alarm when a new order is found
+      }
+
+      // Check for new unseen messages
+      const newUnseenMessage = orderArray.find(order => order.Message_Reason && !readMessages.has(order.id));
+      if (newUnseenMessage) {
+        setReadMessages(prev => {
+          const updated = new Set(prev).add(newUnseenMessage.id);
+          localStorage.setItem('readMessages', JSON.stringify(Array.from(updated)));
+          return updated;
+        });
+        messageAudio.current?.play(); // Play message audio alert if a new message is found
+      }
     };
 
     fetchOrders();
@@ -46,10 +64,15 @@ export default function KitchenDashboard() {
 
   // Trigger alarm for unseen orders
   const triggerAlarm = (orderId) => {
+    console.log("Triggering alarm for order:", orderId); // Debugging: Check if the alarm is triggered
     if (alarmIntervalRef.current) clearInterval(alarmIntervalRef.current);
     alarmIntervalRef.current = setInterval(() => {
-      if (!accepted.has(orderId)) alarmAudio.current.play();
-      else clearInterval(alarmIntervalRef.current);
+      if (!accepted.has(orderId)) {
+        console.log("Playing alarm sound"); // Debugging: Check if the alarm sound is played
+        alarmAudio.current.play();
+      } else {
+        clearInterval(alarmIntervalRef.current);
+      }
     }, 30000);
     alarmAudio.current.play();
   };
