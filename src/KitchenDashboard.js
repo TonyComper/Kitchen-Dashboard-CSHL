@@ -1,3 +1,5 @@
+ // kitchen-dashboard: Includes order and message tracking with alerts, acceptance handling, and UI for current/previous day
+
 import React, { useEffect, useState, useRef } from 'react';
 
 export default function KitchenDashboard() {
@@ -56,27 +58,14 @@ export default function KitchenDashboard() {
   }, [audioEnabled, accepted, seenOrders, seenMessages]);
 
   const triggerAlarm = (orderId) => {
-    if (orders.every(order => accepted.has(order.id))) {
-      // Stop the alarm if all orders have been accepted
-      clearInterval(alarmIntervalRef.current);
-      alarmIntervalRef.current = null;  // Reset interval reference
-      return; // Exit early
-    }
-
     if (alarmIntervalRef.current) clearInterval(alarmIntervalRef.current);
-
     alarmIntervalRef.current = setInterval(() => {
-      // Check if there are any active orders that have not been accepted
-      if (orders.some(order => !accepted.has(order.id))) {
-        alarmAudio.current.play(); // Play alarm sound
+      if (!accepted.has(orderId)) {
+        alarmAudio.current.play();
       } else {
-        // Stop the alarm if all orders are accepted
         clearInterval(alarmIntervalRef.current);
-        alarmIntervalRef.current = null;
       }
     }, 30000);
-
-    // Play the alarm sound immediately when new order appears
     alarmAudio.current.play();
   };
 
@@ -87,7 +76,7 @@ export default function KitchenDashboard() {
       localStorage.setItem('acceptedOrders', JSON.stringify(Array.from(updated)));
       return updated;
     });
-    await fetch(`https://qsr-orders-default-rtdb.firebaseio.com/orders/${id}.json`, {
+    await fetch(https://qsr-orders-default-rtdb.firebaseio.com/orders/${id}.json, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ "Accepted At": timestamp })
@@ -120,7 +109,7 @@ export default function KitchenDashboard() {
     const elapsed = now - new Date(dateStr);
     const minutes = Math.floor(elapsed / 60000);
     const seconds = Math.floor((elapsed % 60000) / 1000);
-    return `${minutes}m ${seconds}s ago`;
+    return ${minutes}m ${seconds}s ago;
   };
 
   const displayedOrders = orders.filter(order => {
