@@ -117,15 +117,15 @@ export default function KitchenDashboard() {
   const markMessageRead = (id) => {
     console.log(`Marking message ${id} as read`);
 
-    // Update readMessages and clearedMessages
+    // Update readMessages and clearedMessages arrays
     setReadMessages(prev => {
-      const updated = [...prev, id]; // Add to readMessages
+      const updated = [...prev, id]; // Add to readMessages array
       localStorage.setItem('readMessages', JSON.stringify(updated));
       return updated;
     });
 
     setClearedMessages(prev => {
-      const updated = [...prev, id]; // Add to clearedMessages
+      const updated = [...prev, id]; // Add to clearedMessages array
       localStorage.setItem('clearedMessages', JSON.stringify(updated));
       return updated;
     });
@@ -138,6 +138,10 @@ export default function KitchenDashboard() {
 
     // Stop alarm for this message
     clearInterval(alarmIntervalRef.current);
+
+    // Debugging log to verify the update
+    console.log('Read Messages:', readMessages);
+    console.log('Cleared Messages:', clearedMessages);
   };
 
   // Clear a message
