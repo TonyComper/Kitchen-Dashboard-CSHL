@@ -191,11 +191,25 @@ export default function KitchenDashboard() {
           <p><strong>Caller Name:</strong> {msg['Caller_Name']}</p>
           <p><strong>Phone:</strong> {msg['Caller_Phone']}</p>
           <p><strong>Reason:</strong> {msg['Message_Reason'] || 'No reason provided'}</p>
-          <button onClick={() => markMessageRead(msg.id)} style={{ backgroundColor: readMessages.has(msg.id) ? 'green' : 'red', color: 'white', marginRight: '1rem', padding: '0.5rem 1rem' }}>
-            {readMessages.has(msg.id) ? 'READ' : 'READ MESSAGE'}
-          </button>
+
+          {/* Always show the READ MESSAGE button for unread messages */}
+          {!readMessages.has(msg.id) && (
+            <button 
+              onClick={() => markMessageRead(msg.id)} 
+              style={{ backgroundColor: 'red', color: 'white', marginRight: '1rem', padding: '0.5rem 1rem' }}
+            >
+              READ MESSAGE
+            </button>
+          )}
+
+          {/* If the message is marked as read, show the CLEAR button */}
           {readMessages.has(msg.id) && (
-            <button onClick={() => clearMessage(msg.id)} style={{ backgroundColor: 'gray', color: 'white', padding: '0.5rem 1rem' }}>CLEAR</button>
+            <button 
+              onClick={() => clearMessage(msg.id)} 
+              style={{ backgroundColor: 'gray', color: 'white', padding: '0.5rem 1rem' }}
+            >
+              CLEAR
+            </button>
           )}
         </div>
       ))}
@@ -233,3 +247,4 @@ export default function KitchenDashboard() {
     </div>
   );
 }
+
