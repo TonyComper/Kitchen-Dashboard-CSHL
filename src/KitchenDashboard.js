@@ -36,7 +36,6 @@ export default function KitchenDashboard() {
       const orderArray = Object.entries(data || {}).map(([id, order]) => ({ id, ...order }));
 
       orderArray.sort((a, b) => new Date(b['Order Date']) - new Date(a['Order Date']));
-      console.log('Fetched Orders:', orderArray); // Debugging the fetched orders
       setOrders(orderArray);
     };
 
@@ -124,16 +123,6 @@ export default function KitchenDashboard() {
   }).length;
 
   console.log('Daily Order Count:', dailyOrderCount); // Debugging the daily count
-
-  // Calculate elapsed time since order
-  const getElapsedTime = (dateStr) => {
-    const orderDate = new Date(dateStr);
-    if (isNaN(orderDate)) return "Invalid date"; // Handle edge case if order date is invalid
-    const elapsed = now - orderDate; // Ensure time difference from now
-    const minutes = Math.floor(elapsed / 60000);
-    const seconds = Math.floor((elapsed % 60000) / 1000);
-    return `${minutes}m ${seconds}s ago`;
-  };
 
   const formattedDate = today.toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
 
