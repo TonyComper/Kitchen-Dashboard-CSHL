@@ -42,19 +42,31 @@ export default function KitchenDashboard() {
       const newUnseenOrder = orderArray.find(order => !seenOrders.has(order.id) && !accepted.has(order.id) && order['Order Items']);
       if (newUnseenOrder) {
         setSeenOrders(prev => new Set(prev).add(newUnseenOrder.id));
-        triggerAlarm(newUnseenOrder.id); // Trigger alarm when a new order is found
+        triggerAlarm(newUnseenOrder.id, newUnseenOrder['Order Type']); // Trigger alarm when a new order is found
       }
 
       // Check for new unseen messages
-      const newUnseenMessage = orderArray.find(order => order.Message_Reason && !readMessages.has(order.id));
-      if (newUnseenMessage) {
-        setReadMessages(prev => {
-          const updated = new Set(prev).add(newUnseenMessage.id);
-          localStorage.setItem('readMessages', JSON.stringify(Array.from(updated)));
-          return updated;
-        });
-        messageAudio.current?.play(); // Play message audio alert if a new message is found
-      }
+      orderArray.forEach(order => {
+        if (order.Message_Reason && !readMessages.has(order.id)) {
+          setReadMessages(prev => {
+            const updated = new Set(prev).add(order.id);
+            localStorage.setItem('readMessages', JSON.stringify(Array.from(updated)));
+            return updated;
+          });
+
+          // Play message audio alert if it's a message order
+          if (order['Order Type'] && order['Order Type'].toUpperCase() === 'MESSAGE') {
+            messageAudio.current?.play(); // Play message audio if it's a message
+            triggerAlarm(order.id, 'MESSAGE'); // Trigger alarm for MESSAGE orders
+          }
+        }
+
+        // Play alert audio for PICK UP and DELIVERY orders
+        if ((order['Order Type'].toUpperCase() === 'PICK UP' || order['Order Type'].toUpperCase() === 'DELIVERY') && !accepted.has(order.id)) {
+          alarmAudio.current?.play(); // Play alert audio for PICK UP and DELIVERY orders
+          triggerAlarm(order.id, order['Order Type']); // Trigger alarm for PICK UP and DELIVERY orders
+        }
+      });
     };
 
     fetchOrders();
@@ -62,19 +74,27 @@ export default function KitchenDashboard() {
     return () => clearInterval(interval);
   }, [audioEnabled]);
 
-  // Trigger alarm for unseen orders
-  const triggerAlarm = (orderId) => {
-    console.log("Triggering alarm for order:", orderId); // Debugging: Check if the alarm is triggered
+  // Trigger alarm for new orders or messages
+  const triggerAlarm = (orderId, orderType) => {
+    console.log(`Triggering alarm for ${orderType}:`, orderId);
     if (alarmIntervalRef.current) clearInterval(alarmIntervalRef.current);
+
+    // Set an interval to play the alarm sound every 10 seconds
     alarmIntervalRef.current = setInterval(() => {
-      if (!accepted.has(orderId)) {
-        console.log("Playing alarm sound"); // Debugging: Check if the alarm sound is played
-        alarmAudio.current.play();
-      } else {
-        clearInterval(alarmIntervalRef.current);
+      if (orderType === 'PICK UP' || orderType === 'DELIVERY') {
+        if (!accepted.has(orderId)) {
+          alarmAudio.current.play(); // Play alert sound for PICK UP or DELIVERY orders
+        } else {
+          clearInterval(alarmIntervalRef.current); // Stop alarm when order is accepted
+        }
+      } else if (orderType === 'MESSAGE') {
+        if (!readMessages.has(orderId)) {
+          messageAudio.current.play(); // Play message audio for MESSAGE orders
+        } else {
+          clearInterval(alarmIntervalRef.current); // Stop alarm when message is read
+        }
       }
-    }, 30000);
-    alarmAudio.current.play();
+    }, 10000); // Repeats every 10 seconds
   };
 
   // Accept an order
@@ -90,7 +110,7 @@ export default function KitchenDashboard() {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ "Accepted At": timestamp })
     });
-    clearInterval(alarmIntervalRef.current);
+    clearInterval(alarmIntervalRef.current); // Stop alarm when order is accepted
   };
 
   // Mark message as read
@@ -100,6 +120,12 @@ export default function KitchenDashboard() {
       localStorage.setItem('readMessages', JSON.stringify(Array.from(updated)));
       return updated;
     });
+    // Stop message audio alert when the message is read
+    if (messageAudio.current) {
+      messageAudio.current.pause();
+      messageAudio.current.currentTime = 0; // Reset the audio
+    }
+    clearInterval(alarmIntervalRef.current); // Stop alarm when message is read
   };
 
   // Clear a message
