@@ -120,6 +120,11 @@ export default function KitchenDashboard() {
       localStorage.setItem('readMessages', JSON.stringify(Array.from(updated)));
       return updated;
     });
+    setClearedMessages(prev => {
+      const updated = new Set(prev).add(id);
+      localStorage.setItem('clearedMessages', JSON.stringify(Array.from(updated)));
+      return updated;
+    });
     // Stop message audio alert when the message is read
     if (messageAudio.current) {
       messageAudio.current.pause();
