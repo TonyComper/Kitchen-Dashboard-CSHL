@@ -158,7 +158,8 @@ export default function KitchenDashboard() {
 
   // Calculate elapsed time since order
   const getElapsedTime = (dateStr) => {
-    const elapsed = now - new Date(dateStr);
+    const orderDate = new Date(dateStr);
+    const elapsed = now - orderDate; // Ensure time difference from now
     const minutes = Math.floor(elapsed / 60000);
     const seconds = Math.floor((elapsed % 60000) / 1000);
     return `${minutes}m ${seconds}s ago`;
