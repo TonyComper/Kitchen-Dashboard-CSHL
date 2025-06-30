@@ -70,8 +70,8 @@ export default function KitchenDashboard() {
   const acceptOrder = async (id) => {
     const timestamp = new Date().toISOString();
     setAccepted(prev => {
-      const updated = new Set(prev).add(id);
-      localStorage.setItem('acceptedOrders', JSON.stringify(Array.from(updated)));
+      const updated = new Set(prev).add(id); // Add order to accepted set
+      localStorage.setItem('acceptedOrders', JSON.stringify(Array.from(updated))); // Save accepted orders to localStorage
       return updated;
     });
     await fetch(`https://qsr-orders-default-rtdb.firebaseio.com/orders/${id}.json`, {
