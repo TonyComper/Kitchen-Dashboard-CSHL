@@ -113,7 +113,6 @@ export default function KitchenDashboard() {
 
   // Get today's date in 'YYYY-MM-DD' format
   const todayStr = formatDate(today);
-  console.log('Today\'s Date String:', todayStr); // Debugging today's date string
 
   // Calculate orders today count
   const dailyOrderCount = orders.filter(order => {
@@ -122,7 +121,15 @@ export default function KitchenDashboard() {
     return formattedOrderDate === todayStr; // Compare only the date part
   }).length;
 
-  console.log('Daily Order Count:', dailyOrderCount); // Debugging the daily count
+  // Calculate elapsed time since order
+  const getElapsedTime = (dateStr) => {
+    const orderDate = new Date(dateStr);
+    if (isNaN(orderDate)) return "Invalid date"; // Handle edge case if order date is invalid
+    const elapsed = now - orderDate; // Ensure time difference from now
+    const minutes = Math.floor(elapsed / 60000);
+    const seconds = Math.floor((elapsed % 60000) / 1000);
+    return `${minutes}m ${seconds}s ago`;
+  };
 
   const formattedDate = today.toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
 
