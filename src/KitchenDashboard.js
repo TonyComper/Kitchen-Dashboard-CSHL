@@ -5,7 +5,7 @@ export default function KitchenDashboard() {
   const [accepted, setAccepted] = useState(new Set(JSON.parse(localStorage.getItem('acceptedOrders') || '[]')));
   const [seenOrders, setSeenOrders] = useState(new Set());
   const [audioEnabled, setAudioEnabled] = useState(false);
-  const [showAccepted, setShowAccepted] = useState(false); // state to toggle between accepted and pending orders
+  const [showAccepted, setShowAccepted] = useState(false);
   const [now, setNow] = useState(Date.now());
   const [readMessages, setReadMessages] = useState(new Set(JSON.parse(localStorage.getItem('readMessages') || '[]')));
   const [clearedMessages, setClearedMessages] = useState(new Set(JSON.parse(localStorage.getItem('clearedMessages') || '[]')));
@@ -42,19 +42,18 @@ export default function KitchenDashboard() {
       const newUnseenOrder = orderArray.find(order => !seenOrders.has(order.id) && !accepted.has(order.id) && order['Order Items']);
       if (newUnseenOrder) {
         setSeenOrders(prev => new Set(prev).add(newUnseenOrder.id));
-        triggerAlarm(newUnseenOrder.id, newUnseenOrder['Order Type']); // Trigger alarm when a new order is found
+        triggerAlarm(newUnseenOrder.id); // Trigger alarm when a new order is found
       }
 
-      // Check for new unseen messages (including blank Message_Reason)
-      const newUnseenMessage = orderArray.find(order => (order['Order Type'] === 'MESSAGE') && !readMessages.has(order.id));
+      // Check for new unseen messages
+      const newUnseenMessage = orderArray.find(order => order.Message_Reason && !readMessages.has(order.id));
       if (newUnseenMessage) {
         setReadMessages(prev => {
-          const updated = new Set(prev).add(newUnseenMessage.id); // Add message id to readMessages
+          const updated = new Set(prev).add(newUnseenMessage.id);
           localStorage.setItem('readMessages', JSON.stringify(Array.from(updated)));
           return updated;
         });
-        messageAudio.current?.play(); // Play message audio alert
-        triggerAlarm(newUnseenMessage.id, 'MESSAGE'); // Trigger alarm for MESSAGE orders
+        messageAudio.current?.play(); // Play message audio alert if a new message is found
       }
     };
 
@@ -63,26 +62,19 @@ export default function KitchenDashboard() {
     return () => clearInterval(interval);
   }, [audioEnabled]);
 
-  // Trigger alarm for new orders or messages
-  const triggerAlarm = (orderId, orderType) => {
+  // Trigger alarm for unseen orders
+  const triggerAlarm = (orderId) => {
     console.log("Triggering alarm for order:", orderId); // Debugging: Check if the alarm is triggered
     if (alarmIntervalRef.current) clearInterval(alarmIntervalRef.current);
     alarmIntervalRef.current = setInterval(() => {
-      if (orderType === 'PICK UP' || orderType === 'DELIVERY') {
-        if (!accepted.has(orderId)) {
-          console.log("Playing alarm sound"); // Debugging: Check if the alarm sound is played
-          alarmAudio.current.play();
-        } else {
-          clearInterval(alarmIntervalRef.current);
-        }
-      } else if (orderType === 'MESSAGE') {
-        if (!readMessages.has(orderId)) {
-          messageAudio.current.play(); // Play message audio for MESSAGE orders
-        } else {
-          clearInterval(alarmIntervalRef.current);
-        }
+      if (!accepted.has(orderId)) {
+        console.log("Playing alarm sound"); // Debugging: Check if the alarm sound is played
+        alarmAudio.current.play();
+      } else {
+        clearInterval(alarmIntervalRef.current);
       }
-    }, 10000); // Repeats every 10 seconds
+    }, 30000);
+    alarmAudio.current.play();
   };
 
   // Accept an order
@@ -98,7 +90,7 @@ export default function KitchenDashboard() {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ "Accepted At": timestamp })
     });
-    clearInterval(alarmIntervalRef.current); // Stop alarm when order is accepted
+    clearInterval(alarmIntervalRef.current);
   };
 
   // Mark message as read
@@ -190,7 +182,7 @@ export default function KitchenDashboard() {
           <p><strong>Message Date:</strong> {msg['Message Date']}</p>
           <p><strong>Caller Name:</strong> {msg['Caller_Name']}</p>
           <p><strong>Phone:</strong> {msg['Caller_Phone']}</p>
-          <p><strong>Reason:</strong> {msg['Message_Reason'] || 'No reason provided'}</p>
+          <p><strong>Reason:</strong> {msg['Message_Reason']}</p>
           <button onClick={() => markMessageRead(msg.id)} style={{ backgroundColor: readMessages.has(msg.id) ? 'green' : 'red', color: 'white', marginRight: '1rem', padding: '0.5rem 1rem' }}>
             {readMessages.has(msg.id) ? 'READ' : 'READ MESSAGE'}
           </button>
