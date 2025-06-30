@@ -10,20 +10,20 @@ export default function KitchenDashboard() {
   const alarmIntervalRef = useRef(null);
   const alarmAudio = useRef(null);
 
-  // Set up the alert audio
+  // Load alert.mp3
   useEffect(() => {
     alarmAudio.current = new Audio('/alert.mp3');
   }, []);
 
-  // Update the "now" timestamp every second
+  // Update clock every second
   useEffect(() => {
     const timer = setInterval(() => setNow(Date.now()), 1000);
     return () => clearInterval(timer);
   }, []);
 
-  // Global alarm loop — runs every 10s until all orders are accepted
+  // Alarm loop that plays sound every 10s until all orders are accepted
   const triggerGlobalAlarm = () => {
-    if (alarmIntervalRef.current) return; // Prevent multiple loops
+    if (alarmIntervalRef.current) return; // already running
     alarmIntervalRef.current = setInterval(() => {
       const hasUnacceptedOrders = orders.some(order =>
         (order['Order Type'] === 'PICK UP' || order['Order Type'] === 'DELIVERY') &&
@@ -31,7 +31,9 @@ export default function KitchenDashboard() {
       );
       if (hasUnacceptedOrders) {
         console.log("🔔 Playing alert.mp3 — unaccepted order exists");
-        alarmAudio.current.play();
+        alarmAudio.current.play().catch(err => {
+          console.warn("⚠️ Audio play failed:", err);
+        });
       } else {
         console.log("✅ All orders accepted — stopping alarm");
         clearInterval(alarmIntervalRef.current);
@@ -60,7 +62,7 @@ export default function KitchenDashboard() {
 
       if (newUnseenOrder) {
         setSeenOrders(prev => new Set(prev).add(newUnseenOrder.id));
-        triggerGlobalAlarm(); // start or continue global alarm loop
+        triggerGlobalAlarm(); // kick off alarm
       }
     };
 
@@ -69,7 +71,7 @@ export default function KitchenDashboard() {
     return () => clearInterval(interval);
   }, [audioEnabled, accepted, seenOrders]);
 
-  // Accept an order
+  // Accept order
   const acceptOrder = async (id) => {
     const timestamp = new Date().toISOString();
     setAccepted(prev => {
@@ -84,20 +86,38 @@ export default function KitchenDashboard() {
     });
   };
 
-  // Prompt user to enable sound and dashboard
+  // Before dashboard is started
   if (!audioEnabled) {
     return (
       <div style={{ padding: '2rem', textAlign: 'center' }}>
         <h1>Orders and Messages Dashboard</h1>
         <p>Please click the button below to start the dashboard and enable sound alerts.</p>
         <p>(c) 2025 RT7 USA Incorporated. All rights reserved.</p>
-        <button onClick={() => setAudioEnabled(true)} style={{ fontSize: '1.2rem', padding: '0.5rem 1rem' }}>
+        <button
+          onClick={() => {
+            setAudioEnabled(true);
+            if (alarmAudio.current) {
+              alarmAudio.current
+                .play()
+                .then(() => {
+                  console.log("✅ Audio playback allowed and working");
+                  alarmAudio.current.pause();
+                  alarmAudio.current.currentTime = 0;
+                })
+                .catch(err => {
+                  console.warn("⚠️ Audio playback failed (maybe autoplay blocked):", err);
+                });
+            }
+          }}
+          style={{ fontSize: '1.2rem', padding: '0.5rem 1rem' }}
+        >
           Start Dashboard
         </button>
       </div>
     );
   }
 
+  // Date helpers
   const today = new Date();
   const formatDate = (date) => {
     const d = new Date(date);
@@ -105,10 +125,10 @@ export default function KitchenDashboard() {
   };
   const todayStr = formatDate(today);
 
-  const dailyOrderCount = orders.filter(order => {
-    const formattedOrderDate = formatDate(new Date(order['Order Date']));
-    return formattedOrderDate === todayStr;
-  }).length;
+  // Count of today's orders
+  const dailyOrderCount = orders.filter(order =>
+    formatDate(new Date(order['Order Date'])) === todayStr
+  ).length;
 
   const getElapsedTime = (dateStr) => {
     const orderDate = new Date(dateStr);
@@ -135,7 +155,10 @@ export default function KitchenDashboard() {
       <p><strong>Date:</strong> {formattedDate}</p>
       <p><strong>Orders Today:</strong> {dailyOrderCount}</p>
 
-      <button onClick={() => setShowAccepted(prev => !prev)} style={{ marginRight: '1rem', backgroundColor: 'red', color: 'white', padding: '0.5rem 1rem' }}>
+      <button
+        onClick={() => setShowAccepted(prev => !prev)}
+        style={{ marginRight: '1rem', backgroundColor: 'red', color: 'white', padding: '0.5rem 1rem' }}
+      >
         {showAccepted ? 'Hide Accepted Orders' : 'View Accepted Orders'}
       </button>
 
@@ -150,7 +173,9 @@ export default function KitchenDashboard() {
             )}
             <p><strong>Order Date:</strong> {order['Order Date']}</p>
             {showAccepted && order['Accepted At'] && (
-              <p style={{ color: 'green', fontWeight: 'bold' }}><strong>Accepted At:</strong> {new Date(order['Accepted At']).toLocaleString()}</p>
+              <p style={{ color: 'green', fontWeight: 'bold' }}>
+                <strong>Accepted At:</strong> {new Date(order['Accepted At']).toLocaleString()}
+              </p>
             )}
             {!showAccepted && order['Order Date'] && (
               <p><strong>Elapsed Time:</strong> <span style={{ color: 'goldenrod' }}>{getElapsedTime(order['Order Date'])}</span></p>
@@ -163,7 +188,17 @@ export default function KitchenDashboard() {
               ))}
             </ul>
             {!accepted.has(order.id) && (
-              <button onClick={() => acceptOrder(order.id)} style={{ marginTop: '1rem', backgroundColor: '#28a745', color: 'white', padding: '0.5rem 1rem', border: 'none', borderRadius: '4px' }}>
+              <button
+                onClick={() => acceptOrder(order.id)}
+                style={{
+                  marginTop: '1rem',
+                  backgroundColor: '#28a745',
+                  color: 'white',
+                  padding: '0.5rem 1rem',
+                  border: 'none',
+                  borderRadius: '4px'
+                }}
+              >
                 ACCEPT
               </button>
             )}
