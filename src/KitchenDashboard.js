@@ -113,7 +113,7 @@ export default function KitchenDashboard() {
     clearInterval(alarmIntervalRef.current); // Stop alarm when order is accepted
   };
 
-  // Mark message as read
+  // Mark message as read and move it to cleared messages
   const markMessageRead = (id) => {
     setReadMessages(prev => {
       const updated = new Set(prev).add(id);
@@ -125,6 +125,7 @@ export default function KitchenDashboard() {
       localStorage.setItem('clearedMessages', JSON.stringify(Array.from(updated)));
       return updated;
     });
+
     // Stop message audio alert when the message is read
     if (messageAudio.current) {
       messageAudio.current.pause();
