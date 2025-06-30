@@ -4,7 +4,7 @@ export default function KitchenDashboard() {
   const [orders, setOrders] = useState([]);
   const [accepted, setAccepted] = useState(new Set(JSON.parse(localStorage.getItem('acceptedOrders') || '[]')));
   const [seenOrders, setSeenOrders] = useState(new Set());
-  const [audioEnabled, setAudioEnabled] = useState(false);
+  const [audioEnabled, setAudioEnabled] = useState(false);  // Add state to track if audio is enabled
   const [showAccepted, setShowAccepted] = useState(false);
   const [now, setNow] = useState(Date.now());
   const [readMessages, setReadMessages] = useState(JSON.parse(localStorage.getItem('readMessages') || '[]'));
@@ -28,7 +28,7 @@ export default function KitchenDashboard() {
 
   // Fetch orders and messages every 5 seconds
   useEffect(() => {
-    if (!audioEnabled) return;
+    if (!audioEnabled) return;  // Only fetch orders if audio is enabled
 
     const fetchOrders = async () => {
       const res = await fetch('https://qsr-orders-default-rtdb.firebaseio.com/orders.json');
@@ -162,10 +162,10 @@ export default function KitchenDashboard() {
   if (!audioEnabled) {
     return (
       <div style={{ padding: '2rem', textAlign: 'center' }}>
-        <h1>Orders and Messages</h1>
+        <h1>Orders and Messages 1</h1>
         <p>Please click the button below to start the dashboard and enable sound alerts.</p>
         <button onClick={() => setAudioEnabled(true)} style={{ fontSize: '1.2rem', padding: '0.5rem 1rem' }}>
-          Start Dashboard
+          Start Dashboard and Enable Audio
         </button>
       </div>
     );
