@@ -153,6 +153,11 @@ export default function KitchenDashboard() {
     });
   };
 
+  // Filter out the read messages from active messages
+  const activeMessages = orders.filter(order => 
+    (order['Order Type'] === 'MESSAGE') && !readMessages.includes(order.id)
+  );
+
   // Only display orders if audio is enabled
   if (!audioEnabled) {
     return (
@@ -217,9 +222,9 @@ export default function KitchenDashboard() {
         {showCleared ? 'Hide Cleared Messages' : 'View Cleared Messages'}
       </button>
 
-      {/* Displaying messages */}
-      {orders.filter(order => (order['Order Type'] || '').toUpperCase() === 'MESSAGE').map(msg => (
-        <div key={msg.id} style={{ border: '2px solid #f00', backgroundColor: readMessages.includes(msg.id) ? '#eee' : '#fffbcc', padding: '1rem', marginTop: '1rem', borderRadius: '8px' }}>
+      {/* Displaying active messages */}
+      {activeMessages.map(msg => (
+        <div key={msg.id} style={{ border: '2px solid #f00', backgroundColor: '#fffbcc', padding: '1rem', marginTop: '1rem', borderRadius: '8px' }}>
           <h3>Incoming Message</h3>
           <p><strong>Message Date:</strong> {msg['Message Date']}</p>
           <p><strong>Caller Name:</strong> {msg['Caller_Name']}</p>
@@ -228,9 +233,15 @@ export default function KitchenDashboard() {
           <button onClick={() => markMessageRead(msg.id)} style={{ backgroundColor: readMessages.includes(msg.id) ? 'green' : 'red', color: 'white', marginRight: '1rem', padding: '0.5rem 1rem' }}>
             {readMessages.includes(msg.id) ? 'READ' : 'READ MESSAGE'}
           </button>
-          {readMessages.includes(msg.id) && (
-            <button onClick={() => clearMessage(msg.id)} style={{ backgroundColor: 'gray', color: 'white', padding: '0.5rem 1rem' }}>CLEAR</button>
-          )}
+        </div>
+      ))}
+
+      {/* Displaying cleared messages */}
+      {showCleared && clearedMessages.map(msgId => (
+        <div key={msgId} style={{ border: '1px solid #ccc', backgroundColor: '#eee', padding: '1rem', marginTop: '1rem', borderRadius: '8px' }}>
+          <h3>Cleared Message</h3>
+          <p><strong>Message ID:</strong> {msgId}</p>
+          <button onClick={() => clearMessage(msgId)} style={{ backgroundColor: 'gray', color: 'white', padding: '0.5rem 1rem' }}>CLEAR</button>
         </div>
       ))}
 
