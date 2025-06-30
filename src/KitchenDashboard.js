@@ -160,6 +160,7 @@ export default function KitchenDashboard() {
   const getElapsedTime = (dateStr) => {
     const orderDate = new Date(dateStr);
     const elapsed = now - orderDate; // Ensure time difference from now
+    if (isNaN(elapsed)) return "Invalid date"; // Handle edge case
     const minutes = Math.floor(elapsed / 60000);
     const seconds = Math.floor((elapsed % 60000) / 1000);
     return `${minutes}m ${seconds}s ago`;
