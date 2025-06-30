@@ -117,14 +117,18 @@ export default function KitchenDashboard() {
   const yesterday = new Date();
   yesterday.setDate(today.getDate() - 1);
 
+  // Function to format date to 'YYYY-MM-DD' for reliable comparison
+  const formatDate = (date) => {
+    const d = new Date(date);
+    return `${d.getFullYear()}-${(d.getMonth() + 1).toString().padStart(2, '0')}-${d.getDate().toString().padStart(2, '0')}`;
+  };
+
   // Utility to check if a date is from today or yesterday
   const isTodayOrYesterday = (dateStr) => {
-    const date = new Date(dateStr);
-
-    const todayStr = today.toLocaleDateString(); // Ensure consistent format
-    const yesterdayStr = yesterday.toLocaleDateString(); // Ensure consistent format
-    
-    return date.toLocaleDateString() === todayStr || date.toLocaleDateString() === yesterdayStr;
+    const date = formatDate(dateStr); // Format the order date to compare
+    const todayStr = formatDate(today); // Format today's date
+    const yesterdayStr = formatDate(yesterday); // Format yesterday's date
+    return date === todayStr || date === yesterdayStr;
   };
 
   const formattedDate = today.toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
@@ -146,9 +150,10 @@ export default function KitchenDashboard() {
 
   // Calculate orders today count
   const dailyOrderCount = orders.filter(order => {
-    const rawDate = order['Order Date'];
-    const orderDate = new Date(rawDate);
-    return orderDate.toLocaleDateString() === today.toLocaleDateString();
+    const orderDate = new Date(order['Order Date']);
+    const formattedOrderDate = formatDate(orderDate); // Format the order date to compare
+    const todayStr = formatDate(today); // Format today's date
+    return formattedOrderDate === todayStr;
   }).length;
 
   // Calculate elapsed time since order
