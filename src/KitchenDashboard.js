@@ -36,6 +36,7 @@ export default function KitchenDashboard() {
       const orderArray = Object.entries(data || {}).map(([id, order]) => ({ id, ...order }));
 
       orderArray.sort((a, b) => new Date(b['Order Date']) - new Date(a['Order Date']));
+      console.log('Fetched Orders:', orderArray); // Debugging the fetched orders
       setOrders(orderArray);
     };
 
@@ -113,6 +114,7 @@ export default function KitchenDashboard() {
 
   // Get today's date in 'YYYY-MM-DD' format
   const todayStr = formatDate(today);
+  console.log('Today\'s Date String:', todayStr); // Debugging today's date string
 
   // Calculate orders today count
   const dailyOrderCount = orders.filter(order => {
@@ -120,6 +122,8 @@ export default function KitchenDashboard() {
     const formattedOrderDate = formatDate(orderDate); // Format the order date to compare
     return formattedOrderDate === todayStr; // Compare only the date part
   }).length;
+
+  console.log('Daily Order Count:', dailyOrderCount); // Debugging the daily count
 
   // Calculate elapsed time since order
   const getElapsedTime = (dateStr) => {
