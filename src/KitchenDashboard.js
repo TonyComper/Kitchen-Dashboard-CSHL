@@ -85,15 +85,15 @@ export default function KitchenDashboard() {
     clearInterval(alarmIntervalRef.current); // Stop alarm when order is accepted
   };
 
-  // Mark message as read
+  // Mark message as read and move to cleared messages
   const markMessageRead = (id) => {
+    // Update readMessages and clearedMessages
     setReadMessages(prev => {
       const updated = new Set(prev).add(id);
       localStorage.setItem('readMessages', JSON.stringify(Array.from(updated))); // Save read messages to localStorage
       return updated;
     });
 
-    // Add the message to cleared messages
     setClearedMessages(prev => {
       const updated = new Set(prev).add(id);
       localStorage.setItem('clearedMessages', JSON.stringify(Array.from(updated))); // Save cleared messages to localStorage
@@ -124,10 +124,11 @@ export default function KitchenDashboard() {
     );
   }
 
+  // Filter orders to show active or cleared messages based on `showCleared`
   const displayedOrders = orders.filter(order => {
-    // Show accepted orders only when toggled
     const isAcceptedOrder = accepted.has(order.id);
-    return !readMessages.has(order.id) && !showCleared || (showCleared && clearedMessages.has(order.id)); // Filter based on read status
+    const isMessageRead = readMessages.has(order.id);
+    return !isMessageRead && !showCleared || (showCleared && clearedMessages.has(order.id)); // Filter based on read status
   }).sort((a, b) => new Date(b['Order Date']) - new Date(a['Order Date']));
 
   return (
@@ -148,6 +149,7 @@ export default function KitchenDashboard() {
             <p><strong>Order Type:</strong> {order['Order Type'] || 'N/A'}</p>
             {order['Order Type']?.toLowerCase() === 'delivery' && <p><strong>Delivery Address:</strong> {order['Delivery Address']}</p>}
             <p><strong>Order Date:</strong> {order['Order Date']}</p>
+
             {order['Order Type']?.toLowerCase() === 'message' && !readMessages.has(order.id) && (
               <button onClick={() => markMessageRead(order.id)} style={{ backgroundColor: 'red', color: 'white', marginTop: '1rem' }}>
                 READ
