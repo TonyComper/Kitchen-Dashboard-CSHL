@@ -37,24 +37,12 @@ export default function KitchenDashboard() {
 
       orderArray.sort((a, b) => new Date(b['Order Date']) - new Date(a['Order Date']));
       setOrders(orderArray);
-
-      const newUnseen = orderArray.find(order => !seenOrders.has(order.id) && !accepted.has(order.id));
-      const newMessage = orderArray.find(order => (order['Order Type'] || '').toUpperCase() === 'MESSAGE' && !readMessages.has(order.id));
-
-      if (newUnseen && (newUnseen['Order Type'] || '').toUpperCase() !== 'MESSAGE') {
-        setSeenOrders(prev => new Set(prev).add(newUnseen.id));
-        triggerAlarm(newUnseen.id);
-      }
-
-      if (newMessage) {
-        messageAudio.current.play();
-      }
     };
 
     fetchOrders();
     const interval = setInterval(fetchOrders, 5000);
     return () => clearInterval(interval);
-  }, [audioEnabled, accepted, seenOrders, readMessages]);
+  }, [audioEnabled]);
 
   // Trigger alarm for unseen orders
   const triggerAlarm = (orderId) => {
