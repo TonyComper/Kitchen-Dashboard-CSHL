@@ -64,7 +64,7 @@ export default function KitchenDashboard() {
     }
 
     if (alarmIntervalRef.current) clearInterval(alarmIntervalRef.current);
-    
+
     alarmIntervalRef.current = setInterval(() => {
       // Check if there are any active orders that have not been accepted
       if (orders.some(order => !accepted.has(order.id))) {
@@ -75,7 +75,7 @@ export default function KitchenDashboard() {
         alarmIntervalRef.current = null;
       }
     }, 30000);
-    
+
     // Play the alarm sound immediately when new order appears
     alarmAudio.current.play();
   };
