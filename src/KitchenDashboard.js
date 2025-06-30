@@ -111,48 +111,27 @@ export default function KitchenDashboard() {
     return `${d.getFullYear()}-${(d.getMonth() + 1).toString().padStart(2, '0')}-${d.getDate().toString().padStart(2, '0')}`;
   };
 
-  // Utility to check if a date is from today or yesterday
-  const isTodayOrYesterday = (dateStr) => {
-    const date = formatDate(dateStr); // Format the order date to compare
-    const todayStr = formatDate(today); // Format today's date
-    const yesterdayStr = formatDate(yesterday); // Format yesterday's date
-    return date === todayStr || date === yesterdayStr;
-  };
-
-  const formattedDate = today.toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
-
-  // Filter orders for "Orders Today"
-  const displayedOrders = orders.filter(order => {
-    const isAccepted = accepted.has(order.id);
-    const isInDateRange = isTodayOrYesterday(order['Order Date']);
-    return order['Order Type'] !== 'MESSAGE' && (showAccepted ? isAccepted && isInDateRange : !isAccepted);
-  }).sort((a, b) => new Date(b['Order Date']) - new Date(a['Order Date']));
-
-  // Filter messages
-  const messages = orders.filter(order => {
-    const isMessage = (order['Order Type'] || '').toUpperCase() === 'MESSAGE';
-    const isPopulated = order['Caller_Name'] || order['Caller_Phone'] || order['Message_Reason'];
-    const isCleared = clearedMessages.has(order.id);
-    return isMessage && isPopulated && (showCleared ? isCleared : !isCleared);
-  }).sort((a, b) => new Date(b['Message Date']) - new Date(a['Message Date']));
-
+  // Get today's date in 'YYYY-MM-DD' format
+  const todayStr = formatDate(today);
+  
   // Calculate orders today count
   const dailyOrderCount = orders.filter(order => {
     const orderDate = new Date(order['Order Date']);
     const formattedOrderDate = formatDate(orderDate); // Format the order date to compare
-    const todayStr = formatDate(today); // Format today's date
-    return formattedOrderDate === todayStr;
+    return formattedOrderDate === todayStr; // Compare only the date part
   }).length;
 
   // Calculate elapsed time since order
   const getElapsedTime = (dateStr) => {
     const orderDate = new Date(dateStr);
     const elapsed = now - orderDate; // Ensure time difference from now
-    if (isNaN(elapsed)) return "Invalid date"; // Handle edge case
+    if (isNaN(elapsed)) return "Invalid date"; // Handle edge case if date is invalid
     const minutes = Math.floor(elapsed / 60000);
     const seconds = Math.floor((elapsed % 60000) / 1000);
     return `${minutes}m ${seconds}s ago`;
   };
+
+  const formattedDate = today.toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
 
   return (
     <div style={{ padding: '1rem', fontFamily: 'Arial' }}>
@@ -168,7 +147,7 @@ export default function KitchenDashboard() {
       </button>
 
       {/* Displaying messages */}
-      {messages.map(msg => (
+      {orders.filter(order => (order['Order Type'] || '').toUpperCase() === 'MESSAGE').map(msg => (
         <div key={msg.id} style={{ border: '2px solid #f00', backgroundColor: readMessages.has(msg.id) ? '#eee' : '#fffbcc', padding: '1rem', marginTop: '1rem', borderRadius: '8px' }}>
           <h3>Incoming Message</h3>
           <p><strong>Message Date:</strong> {msg['Message Date']}</p>
@@ -186,7 +165,7 @@ export default function KitchenDashboard() {
 
       <div style={{ display: 'grid', gap: '1rem', marginTop: '2rem' }}>
         {/* Displaying orders */}
-        {displayedOrders.map(order => (
+        {orders.filter(order => order['Order Type'] !== 'MESSAGE').map(order => (
           <div key={order.id} style={{ border: '1px solid #ccc', padding: '1.5rem', borderRadius: '8px', fontSize: '1.2rem' }}>
             <h2>Order #{order['Order ID']}</h2>
             <p><strong>Customer:</strong> {order['Customer Name']}</p>
