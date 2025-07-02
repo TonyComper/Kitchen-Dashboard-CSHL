@@ -7,6 +7,7 @@ export default function KitchenDashboard() {
   const [seenMessages, setSeenMessages] = useState(new Set(JSON.parse(localStorage.getItem('seenMessages') || '[]')));
   const [readMessages, setReadMessages] = useState(new Set(JSON.parse(localStorage.getItem('readMessages') || '[]')));
   const [showReadMessages, setShowReadMessages] = useState(false);
+  const [showArchived, setShowArchived] = useState(false);
   const [audioEnabled, setAudioEnabled] = useState(false);
   const [showAccepted, setShowAccepted] = useState(false);
   const [now, setNow] = useState(Date.now());
@@ -132,6 +133,39 @@ export default function KitchenDashboard() {
     });
   };
 
+  const today = new Date();
+  const formatDate = (date) => {
+    const d = new Date(date);
+    return `${d.getFullYear()}-${(d.getMonth() + 1).toString().padStart(2, '0')}-${d.getDate().toString().padStart(2, '0')}`;
+  };
+  const todayStr = formatDate(today);
+
+  const isOlderThanDays = (dateStr, days) => {
+    const date = new Date(dateStr);
+    return !isNaN(date) && (now - date.getTime()) > (days * 86400000);
+  };
+
+  const displayedOrders = orders.filter(order => {
+    const isAcceptedOrder = accepted.has(order.id);
+    const isInDateRange = formatDate(new Date(order['Order Date'])) === todayStr;
+    return !showArchived
+      ? (showAccepted ? isAcceptedOrder && isInDateRange : !isAcceptedOrder && isInDateRange) && order['Order Type'] !== 'MESSAGE'
+      : false;
+  });
+
+  const displayedMessages = orders.filter(order =>
+    order['Order Type'] === 'MESSAGE' &&
+    formatDate(new Date(order['Message Date'])) === todayStr &&
+    !readMessages.has(order.id) &&
+    !showArchived
+  );
+
+  const archivedItems = orders.filter(order => {
+    const isOldAccepted = accepted.has(order.id) && isOlderThanDays(order['Accepted At'], 3);
+    const isOldReadMessage = order['Order Type'] === 'MESSAGE' && readMessages.has(order.id) && isOlderThanDays(order['Message Date'], 3);
+    return isOldAccepted || isOldReadMessage;
+  }).sort((a, b) => new Date(b['Accepted At'] || b['Message Date']) - new Date(a['Accepted At'] || a['Message Date']));
+
   if (!audioEnabled) {
     return (
       <div style={{ padding: '2rem', textAlign: 'center' }}>
@@ -143,17 +177,15 @@ export default function KitchenDashboard() {
             setAudioEnabled(true);
             if (alarmAudio.current) {
               alarmAudio.current.play().then(() => {
-                console.log("✅ Order alert playback allowed");
                 alarmAudio.current.pause();
                 alarmAudio.current.currentTime = 0;
-              }).catch(err => console.warn("Order alert playback failed:", err));
+              }).catch(() => {});
             }
             if (messageAudio.current) {
               messageAudio.current.play().then(() => {
-                console.log("✅ Message alert playback allowed");
                 messageAudio.current.pause();
                 messageAudio.current.currentTime = 0;
-              }).catch(err => console.warn("Message alert playback failed:", err));
+              }).catch(() => {});
             }
           }}
           style={{ fontSize: '1.2rem', padding: '0.5rem 1rem' }}
@@ -164,120 +196,76 @@ export default function KitchenDashboard() {
     );
   }
 
-  const today = new Date();
-  const formatDate = (date) => {
-    const d = new Date(date);
-    return `${d.getFullYear()}-${(d.getMonth() + 1).toString().padStart(2, '0')}-${d.getDate().toString().padStart(2, '0')}`;
-  };
-  const todayStr = formatDate(today);
-
-  const dailyOrderCount = orders.filter(order =>
-    formatDate(new Date(order['Order Date'])) === todayStr
-  ).length;
-
-  const getElapsedTime = (dateStr) => {
-    const orderDate = new Date(dateStr);
-    if (isNaN(orderDate)) return "Invalid date";
-    const elapsed = now - orderDate;
-    const minutes = Math.floor(elapsed / 60000);
-    const seconds = Math.floor((elapsed % 60000) / 1000);
-    return `${minutes}m ${seconds}s ago`;
-  };
-
-  const formattedDate = today.toLocaleDateString('en-US', {
-    weekday: 'long', year: 'numeric', month: 'long', day: 'numeric'
-  });
-
-  const displayedOrders = orders.filter(order => {
-    const isAcceptedOrder = accepted.has(order.id);
-    const isInDateRange = formatDate(new Date(order['Order Date'])) === todayStr;
-    return showAccepted
-      ? isAcceptedOrder && isInDateRange && order['Order Type'] !== 'MESSAGE'
-      : !isAcceptedOrder && isInDateRange && order['Order Type'] !== 'MESSAGE';
-  });
-
-  const displayedMessages = orders.filter(order =>
-    order['Order Type'] === 'MESSAGE' &&
-    formatDate(new Date(order['Message Date'])) === todayStr &&
-    (showReadMessages ? readMessages.has(order.id) : !readMessages.has(order.id))
-  );
-
   return (
     <div style={{ padding: '1rem', fontFamily: 'Arial' }}>
       <h1>Orders and Messages - California Sandwiches Winston Churchill</h1>
-      <p><strong>Date:</strong> {formattedDate}</p>
-      <p><strong>Orders Today:</strong> {dailyOrderCount}</p>
+      <p><strong>Date:</strong> {today.toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</p>
 
-      <button
-        onClick={() => setShowAccepted(prev => !prev)}
-        style={{ marginRight: '1rem', backgroundColor: 'red', color: 'white', padding: '0.5rem 1rem' }}
-      >
+      <button onClick={() => setShowAccepted(prev => !prev)} style={{ marginRight: '1rem', backgroundColor: 'red', color: 'white', padding: '0.5rem 1rem' }}>
         {showAccepted ? 'Hide Accepted Orders' : 'View Accepted Orders'}
       </button>
 
-      <button
-        onClick={() => setShowReadMessages(prev => !prev)}
-        style={{ backgroundColor: '#6c757d', color: 'white', padding: '0.5rem 1rem' }}
-      >
+      <button onClick={() => setShowReadMessages(prev => !prev)} style={{ marginRight: '1rem', backgroundColor: '#6c757d', color: 'white', padding: '0.5rem 1rem' }}>
         {showReadMessages ? 'Hide Read Messages' : 'View Read Messages'}
       </button>
 
-      {displayedMessages.map(message => (
+      <button onClick={() => setShowArchived(prev => !prev)} style={{ backgroundColor: '#343a40', color: 'white', padding: '0.5rem 1rem' }}>
+        {showArchived ? 'Hide Archived' : 'View Archived'}
+      </button>
+
+      {!showArchived && displayedMessages.map(message => (
         <div key={message.id} style={{ backgroundColor: '#fff3f4', border: '2px solid #ff4081', padding: '1rem', borderRadius: '8px', marginTop: '1rem' }}>
-          <h2>📨 {showReadMessages ? 'Read Message' : 'New Message'}</h2>
+          <h2>📨 New Message</h2>
           <p><strong>Time:</strong> {message['Message Date'] || 'N/A'}</p>
           <p><strong>Caller Name:</strong> {message['Caller_Name'] || 'N/A'}</p>
           <p><strong>Caller Phone:</strong> {message['Caller_Phone'] || 'N/A'}</p>
           <p><strong>Reason:</strong> {message['Message_Reason'] || 'N/A'}</p>
-          {!showReadMessages && (
-            <button onClick={() => markMessageAsRead(message.id)} style={{ marginTop: '0.5rem', backgroundColor: '#d6336c', color: 'white', padding: '0.5rem 1rem', border: 'none', borderRadius: '4px' }}>Mark As Read</button>
-          )}
+          <button onClick={() => markMessageAsRead(message.id)} style={{ marginTop: '0.5rem', backgroundColor: '#d6336c', color: 'white', padding: '0.5rem 1rem', border: 'none', borderRadius: '4px' }}>Mark As Read</button>
         </div>
       ))}
 
-      <div style={{ display: 'grid', gap: '1rem', marginTop: '2rem' }}>
+      {!showArchived && <div style={{ display: 'grid', gap: '1rem', marginTop: '2rem' }}>
         {displayedOrders.map(order => (
           <div key={order.id} style={{ border: '1px solid #ccc', padding: '1.5rem', borderRadius: '8px', fontSize: '1.2rem' }}>
             <h2>Order #{order['Order ID']}</h2>
             <p><strong>Customer:</strong> {order['Customer Name']}</p>
             <p><strong>Order Type:</strong> {order['Order Type'] || 'N/A'}</p>
-            {order['Order Type']?.toLowerCase() === 'delivery' && (
-              <p><strong>Delivery Address:</strong> {order['Delivery Address']}</p>
-            )}
+            {order['Order Type']?.toLowerCase() === 'delivery' && <p><strong>Delivery Address:</strong> {order['Delivery Address']}</p>}
             <p><strong>Order Date:</strong> {order['Order Date']}</p>
-            {showAccepted && order['Accepted At'] && (
-              <p style={{ color: 'green', fontWeight: 'bold' }}>
-                <strong>Accepted At:</strong> {new Date(order['Accepted At']).toLocaleString()}
-              </p>
-            )}
-            {!showAccepted && order['Order Date'] && (
-              <p><strong>Elapsed Time:</strong> <span style={{ color: 'goldenrod' }}>{getElapsedTime(order['Order Date'])}</span></p>
-            )}
-            <p style={{ color: 'red', fontWeight: 'bold' }}><strong>Pickup Time:</strong> {order['Pickup Time']}</p>
+            <p><strong>Pickup Time:</strong> {order['Pickup Time']}</p>
             <p><strong>Total:</strong> {order['Total Price']}</p>
             <ul>
-              {order['Order Items'].split(',').map((item, index) => (
-                <li key={index}>{item.trim()}</li>
-              ))}
+              {order['Order Items'].split(',').map((item, index) => <li key={index}>{item.trim()}</li>)}
             </ul>
-            {!accepted.has(order.id) && (
-              <button
-                onClick={() => acceptOrder(order.id)}
-                style={{
-                  marginTop: '1rem',
-                  backgroundColor: '#28a745',
-                  color: 'white',
-                  padding: '0.5rem 1rem',
-                  border: 'none',
-                  borderRadius: '4px'
-                }}
-              >
-                ACCEPT
-              </button>
-            )}
+            {!accepted.has(order.id) && <button onClick={() => acceptOrder(order.id)} style={{ marginTop: '1rem', backgroundColor: '#28a745', color: 'white', padding: '0.5rem 1rem', border: 'none', borderRadius: '4px' }}>ACCEPT</button>}
           </div>
         ))}
-      </div>
+      </div>}
+
+      {showArchived && archivedItems.map(item => (
+        <div key={item.id} style={{ backgroundColor: '#f4f4f4', border: '1px solid #999', padding: '1rem', borderRadius: '8px', marginTop: '1rem' }}>
+          <h2>{item['Order Type'] === 'MESSAGE' ? '📨 Archived Message' : `🗃️ Archived Order #${item['Order ID']}`}</h2>
+          <p><strong>Date:</strong> {item['Message Date'] || item['Accepted At']}</p>
+          {item['Order Type'] === 'MESSAGE' ? (
+            <>
+              <p><strong>Caller Name:</strong> {item['Caller_Name']}</p>
+              <p><strong>Caller Phone:</strong> {item['Caller_Phone']}</p>
+              <p><strong>Reason:</strong> {item['Message_Reason']}</p>
+            </>
+          ) : (
+            <>
+              <p><strong>Customer:</strong> {item['Customer Name']}</p>
+              <p><strong>Order Type:</strong> {item['Order Type']}</p>
+              <p><strong>Delivery Address:</strong> {item['Delivery Address']}</p>
+              <p><strong>Pickup Time:</strong> {item['Pickup Time']}</p>
+              <p><strong>Total:</strong> {item['Total Price']}</p>
+              <ul>
+                {item['Order Items'].split(',').map((itemText, index) => <li key={index}>{itemText.trim()}</li>)}
+              </ul>
+            </>
+          )}
+        </div>
+      ))}
     </div>
   );
 }
