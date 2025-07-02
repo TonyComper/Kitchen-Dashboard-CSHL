@@ -119,15 +119,22 @@ export default function KitchenDashboard() {
         <button
           onClick={() => {
             setAudioEnabled(true);
+
+            // Preload and unlock both sounds with user gesture
             if (alarmAudio.current) {
-              alarmAudio.current
-                .play()
-                .then(() => {
-                  console.log("✅ Audio playback allowed and working");
-                  alarmAudio.current.pause();
-                  alarmAudio.current.currentTime = 0;
-                })
-                .catch(err => console.warn("Audio playback failed:", err));
+              alarmAudio.current.play().then(() => {
+                console.log("✅ Order alert playback allowed");
+                alarmAudio.current.pause();
+                alarmAudio.current.currentTime = 0;
+              }).catch(err => console.warn("Order alert playback failed:", err));
+            }
+
+            if (messageAudio.current) {
+              messageAudio.current.play().then(() => {
+                console.log("✅ Message alert playback allowed");
+                messageAudio.current.pause();
+                messageAudio.current.currentTime = 0;
+              }).catch(err => console.warn("Message alert playback failed:", err));
             }
           }}
           style={{ fontSize: '1.2rem', padding: '0.5rem 1rem' }}
