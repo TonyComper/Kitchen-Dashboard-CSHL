@@ -5,6 +5,7 @@ export default function KitchenDashboard() {
   const [accepted, setAccepted] = useState(new Set(JSON.parse(localStorage.getItem('acceptedOrders') || '[]')));
   const [seenOrders, setSeenOrders] = useState(new Set());
   const [seenMessages, setSeenMessages] = useState(new Set(JSON.parse(localStorage.getItem('seenMessages') || '[]')));
+  const [readMessages, setReadMessages] = useState(new Set(JSON.parse(localStorage.getItem('readMessages') || '[]')));
   const [audioEnabled, setAudioEnabled] = useState(false);
   const [showAccepted, setShowAccepted] = useState(false);
   const [now, setNow] = useState(Date.now());
@@ -122,6 +123,14 @@ export default function KitchenDashboard() {
     });
   };
 
+  const markMessageAsRead = (id) => {
+    setReadMessages(prev => {
+      const updated = new Set(prev).add(id);
+      localStorage.setItem('readMessages', JSON.stringify(Array.from(updated)));
+      return updated;
+    });
+  };
+
   if (!audioEnabled) {
     return (
       <div style={{ padding: '2rem', textAlign: 'center' }}>
@@ -188,7 +197,8 @@ export default function KitchenDashboard() {
 
   const displayedMessages = orders.filter(order =>
     order['Order Type'] === 'MESSAGE' &&
-    formatDate(new Date(order['Message Date'])) === todayStr
+    formatDate(new Date(order['Message Date'])) === todayStr &&
+    !readMessages.has(order.id)
   );
 
   return (
@@ -212,6 +222,7 @@ export default function KitchenDashboard() {
           <p><strong>Caller Name:</strong> {message['Caller_Name'] || 'N/A'}</p>
           <p><strong>Caller Phone:</strong> {message['Caller_Phone'] || 'N/A'}</p>
           <p><strong>Reason:</strong> {message['Message_Reason'] || 'N/A'}</p>
+          <button onClick={() => markMessageAsRead(message.id)} style={{ marginTop: '0.5rem', backgroundColor: '#d6336c', color: 'white', padding: '0.5rem 1rem', border: 'none', borderRadius: '4px' }}>Mark As Read</button>
         </div>
       ))}
 
