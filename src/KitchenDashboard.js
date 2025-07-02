@@ -14,7 +14,13 @@ export default function KitchenDashboard() {
 
   useEffect(() => {
     alarmAudio.current = new Audio('/alert.mp3');
-    messageAudio.current = new Audio('/Message-alert.mp3');
+    alarmAudio.current.load();
+
+    messageAudio.current = new Audio('/message-alert.mp3');
+    messageAudio.current.load();
+
+    messageAudio.current.onplay = () => console.log("🔊 message-alert.mp3 is playing");
+    messageAudio.current.onerror = (e) => console.warn("❌ message-alert.mp3 failed to play", e);
   }, []);
 
   useEffect(() => {
@@ -71,12 +77,18 @@ export default function KitchenDashboard() {
         !seenMessages.has(order.id)
       );
       if (newUnseenMessage) {
+        console.log("📨 Triggering message alert sound");
         setSeenMessages(prev => {
           const updated = new Set(prev).add(newUnseenMessage.id);
           localStorage.setItem('seenMessages', JSON.stringify(Array.from(updated)));
           return updated;
         });
-        messageAudio.current.play().catch(err => console.warn("Message alert failed:", err));
+        if (messageAudio.current) {
+          messageAudio.current.currentTime = 0;
+          messageAudio.current.play()
+            .then(() => console.log("✅ message-alert.mp3 playback started"))
+            .catch(err => console.warn("❌ message-alert.mp3 playback failed", err));
+        }
       }
 
       const hasUnaccepted = orderArray.some(order =>
@@ -119,8 +131,6 @@ export default function KitchenDashboard() {
         <button
           onClick={() => {
             setAudioEnabled(true);
-
-            // Preload and unlock both sounds with user gesture
             if (alarmAudio.current) {
               alarmAudio.current.play().then(() => {
                 console.log("✅ Order alert playback allowed");
@@ -128,7 +138,6 @@ export default function KitchenDashboard() {
                 alarmAudio.current.currentTime = 0;
               }).catch(err => console.warn("Order alert playback failed:", err));
             }
-
             if (messageAudio.current) {
               messageAudio.current.play().then(() => {
                 console.log("✅ Message alert playback allowed");
