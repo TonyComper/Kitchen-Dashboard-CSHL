@@ -14,6 +14,16 @@ export default function KitchenDashboard() {
   const alarmAudio = useRef(null);
   const messageAudio = useRef(null);
 
+  const parseDate = (input) => {
+    if (!input) return null;
+    const iso = new Date(input);
+    if (!isNaN(iso)) return iso;
+    const cleaned = input.replace(/\(.*?\)/g, '').trim();
+    const fallback = new Date(cleaned);
+    if (!isNaN(fallback)) return fallback;
+    return null;
+  };
+
   useEffect(() => {
     alarmAudio.current = new Audio('/alert.mp3');
     alarmAudio.current.load();
@@ -59,7 +69,7 @@ export default function KitchenDashboard() {
       }));
 
       orderArray.sort((a, b) =>
-        new Date(b['Order Date'] || b['Message Date']) - new Date(a['Order Date'] || a['Message Date'])
+        parseDate(b['Order Date'] || b['Message Date']) - parseDate(a['Order Date'] || a['Message Date'])
       );
 
       setOrders(orderArray);
@@ -166,18 +176,18 @@ export default function KitchenDashboard() {
 
   const today = new Date();
   const formatDate = (date) => {
-    const d = new Date(date);
-    return `${d.getFullYear()}-${(d.getMonth() + 1).toString().padStart(2, '0')}-${d.getDate().toString().padStart(2, '0')}`;
+    const d = parseDate(date);
+    return d ? `${d.getFullYear()}-${(d.getMonth() + 1).toString().padStart(2, '0')}-${d.getDate().toString().padStart(2, '0')}` : '';
   };
   const todayStr = formatDate(today);
 
   const dailyOrderCount = orders.filter(order =>
-    formatDate(new Date(order['Order Date'])) === todayStr
+    formatDate(order['Order Date']) === todayStr
   ).length;
 
   const getElapsedTime = (dateStr) => {
-    const orderDate = new Date(dateStr);
-    if (isNaN(orderDate)) return "Invalid date";
+    const orderDate = parseDate(dateStr);
+    if (!orderDate) return "Invalid date";
     const elapsed = now - orderDate;
     const minutes = Math.floor(elapsed / 60000);
     const seconds = Math.floor((elapsed % 60000) / 1000);
@@ -190,7 +200,7 @@ export default function KitchenDashboard() {
 
   const displayedOrders = orders.filter(order => {
     const isAcceptedOrder = accepted.has(order.id);
-    const isInDateRange = formatDate(new Date(order['Order Date'])) === todayStr;
+    const isInDateRange = formatDate(order['Order Date']) === todayStr;
     return showAccepted
       ? isAcceptedOrder && isInDateRange && order['Order Type'] !== 'MESSAGE'
       : !isAcceptedOrder && isInDateRange && order['Order Type'] !== 'MESSAGE';
@@ -198,7 +208,7 @@ export default function KitchenDashboard() {
 
   const displayedMessages = orders.filter(order =>
     order['Order Type'] === 'MESSAGE' &&
-    formatDate(new Date(order['Message Date'])) === todayStr &&
+    formatDate(order['Message Date']) === todayStr &&
     (showReadMessages ? readMessages.has(order.id) : !readMessages.has(order.id))
   );
 
