@@ -12,7 +12,6 @@ export default function KitchenDashboard() {
   const alarmAudio = useRef(null);
   const messageAudio = useRef(null);
 
-  // Load alert sounds
   useEffect(() => {
     alarmAudio.current = new Audio('/alert.mp3');
     messageAudio.current = new Audio('/Message-alert.mp3');
@@ -51,7 +50,10 @@ export default function KitchenDashboard() {
         ...order
       }));
 
-      orderArray.sort((a, b) => new Date(b['Order Date'] || b['Message Date']) - new Date(a['Order Date'] || a['Message Date']));
+      orderArray.sort((a, b) =>
+        new Date(b['Order Date'] || b['Message Date']) - new Date(a['Order Date'] || a['Message Date'])
+      );
+
       setOrders(orderArray);
 
       const newUnseenOrder = orderArray.find(order =>
@@ -190,10 +192,10 @@ export default function KitchenDashboard() {
       {displayedMessages.map(message => (
         <div key={message.id} style={{ backgroundColor: '#fff3f4', border: '2px solid #ff4081', padding: '1rem', borderRadius: '8px', marginTop: '1rem' }}>
           <h2>📨 New Message</h2>
-          <p><strong>Time:</strong> {new Date(message['Message Date']).toLocaleString()}</p>
-          <p><strong>Caller Name:</strong> {message['Caller Name'] || 'N/A'}</p>
-          <p><strong>Caller Phone:</strong> {message['Caller Phone'] || 'N/A'}</p>
-          <p><strong>Reason:</strong> {message['Message Reason'] || 'N/A'}</p>
+          <p><strong>Time:</strong> {message['Message Date'] || 'N/A'}</p>
+          <p><strong>Caller Name:</strong> {message['Caller_Name'] || 'N/A'}</p>
+          <p><strong>Caller Phone:</strong> {message['Caller_Phone'] || 'N/A'}</p>
+          <p><strong>Reason:</strong> {message['Message_Reason'] || 'N/A'}</p>
         </div>
       ))}
 
