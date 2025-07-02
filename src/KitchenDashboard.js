@@ -6,6 +6,7 @@ export default function KitchenDashboard() {
   const [seenOrders, setSeenOrders] = useState(new Set());
   const [seenMessages, setSeenMessages] = useState(new Set(JSON.parse(localStorage.getItem('seenMessages') || '[]')));
   const [readMessages, setReadMessages] = useState(new Set(JSON.parse(localStorage.getItem('readMessages') || '[]')));
+  const [showReadMessages, setShowReadMessages] = useState(false);
   const [audioEnabled, setAudioEnabled] = useState(false);
   const [showAccepted, setShowAccepted] = useState(false);
   const [now, setNow] = useState(Date.now());
@@ -198,7 +199,7 @@ export default function KitchenDashboard() {
   const displayedMessages = orders.filter(order =>
     order['Order Type'] === 'MESSAGE' &&
     formatDate(new Date(order['Message Date'])) === todayStr &&
-    !readMessages.has(order.id)
+    (showReadMessages ? readMessages.has(order.id) : !readMessages.has(order.id))
   );
 
   return (
@@ -214,19 +215,26 @@ export default function KitchenDashboard() {
         {showAccepted ? 'Hide Accepted Orders' : 'View Accepted Orders'}
       </button>
 
-      {/* Messages */}
+      <button
+        onClick={() => setShowReadMessages(prev => !prev)}
+        style={{ backgroundColor: '#6c757d', color: 'white', padding: '0.5rem 1rem' }}
+      >
+        {showReadMessages ? 'Hide Read Messages' : 'View Read Messages'}
+      </button>
+
       {displayedMessages.map(message => (
         <div key={message.id} style={{ backgroundColor: '#fff3f4', border: '2px solid #ff4081', padding: '1rem', borderRadius: '8px', marginTop: '1rem' }}>
-          <h2>📨 New Message</h2>
+          <h2>📨 {showReadMessages ? 'Read Message' : 'New Message'}</h2>
           <p><strong>Time:</strong> {message['Message Date'] || 'N/A'}</p>
           <p><strong>Caller Name:</strong> {message['Caller_Name'] || 'N/A'}</p>
           <p><strong>Caller Phone:</strong> {message['Caller_Phone'] || 'N/A'}</p>
           <p><strong>Reason:</strong> {message['Message_Reason'] || 'N/A'}</p>
-          <button onClick={() => markMessageAsRead(message.id)} style={{ marginTop: '0.5rem', backgroundColor: '#d6336c', color: 'white', padding: '0.5rem 1rem', border: 'none', borderRadius: '4px' }}>Mark As Read</button>
+          {!showReadMessages && (
+            <button onClick={() => markMessageAsRead(message.id)} style={{ marginTop: '0.5rem', backgroundColor: '#d6336c', color: 'white', padding: '0.5rem 1rem', border: 'none', borderRadius: '4px' }}>Mark As Read</button>
+          )}
         </div>
       ))}
 
-      {/* Orders */}
       <div style={{ display: 'grid', gap: '1rem', marginTop: '2rem' }}>
         {displayedOrders.map(order => (
           <div key={order.id} style={{ border: '1px solid #ccc', padding: '1.5rem', borderRadius: '8px', fontSize: '1.2rem' }}>
