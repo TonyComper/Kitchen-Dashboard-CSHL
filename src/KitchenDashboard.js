@@ -4,67 +4,79 @@ export default function KitchenDashboard() {
   const [orders, setOrders] = useState([]);
   const [accepted, setAccepted] = useState(new Set(JSON.parse(localStorage.getItem('acceptedOrders') || '[]')));
   const [seenOrders, setSeenOrders] = useState(new Set());
+  const [seenMessages, setSeenMessages] = useState(new Set(JSON.parse(localStorage.getItem('seenMessages') || '[]')));
   const [audioEnabled, setAudioEnabled] = useState(false);
   const [showAccepted, setShowAccepted] = useState(false);
   const [now, setNow] = useState(Date.now());
   const alarmIntervalRef = useRef(null);
   const alarmAudio = useRef(null);
+  const messageAudio = useRef(null);
 
-  // Load alert.mp3
+  // Load alert sounds
   useEffect(() => {
     alarmAudio.current = new Audio('/alert.mp3');
+    messageAudio.current = new Audio('/Message-alert.mp3');
   }, []);
 
-  // Update clock every second
   useEffect(() => {
     const timer = setInterval(() => setNow(Date.now()), 1000);
     return () => clearInterval(timer);
   }, []);
 
-  // Alarm loop that plays sound every 10s until all orders are accepted
   const triggerGlobalAlarm = () => {
-    if (alarmIntervalRef.current) return; // already running
+    if (alarmIntervalRef.current) return;
     alarmIntervalRef.current = setInterval(() => {
       const hasUnacceptedOrders = orders.some(order =>
         (order['Order Type'] === 'PICK UP' || order['Order Type'] === 'DELIVERY') &&
         !accepted.has(order.id)
       );
       if (hasUnacceptedOrders) {
-        console.log("🔔 Playing alert.mp3 — unaccepted order exists");
-        alarmAudio.current.play().catch(err => {
-          console.warn("⚠️ Audio play failed:", err);
-        });
+        alarmAudio.current.play().catch(err => console.warn("Alarm play failed:", err));
       } else {
-        console.log("✅ All orders accepted — stopping alarm");
         clearInterval(alarmIntervalRef.current);
         alarmIntervalRef.current = null;
       }
     }, 10000);
   };
 
-  // Fetch orders and always check for alarm trigger
   useEffect(() => {
     if (!audioEnabled) return;
 
     const fetchOrders = async () => {
       const res = await fetch('https://qsr-orders-default-rtdb.firebaseio.com/orders.json');
       const data = await res.json();
-      const orderArray = Object.entries(data || {}).map(([id, order]) => ({ id, ...order }));
 
-      orderArray.sort((a, b) => new Date(b['Order Date']) - new Date(a['Order Date']));
+      const orderArray = Object.entries(data || {}).map(([id, order]) => ({
+        id,
+        ...order
+      }));
+
+      orderArray.sort((a, b) => new Date(b['Order Date'] || b['Message Date']) - new Date(a['Order Date'] || a['Message Date']));
       setOrders(orderArray);
 
-      // Mark unseen orders
       const newUnseenOrder = orderArray.find(order =>
         !seenOrders.has(order.id) &&
         !accepted.has(order.id) &&
+        order['Order Type'] !== 'MESSAGE' &&
         order['Order Items']
       );
       if (newUnseenOrder) {
         setSeenOrders(prev => new Set(prev).add(newUnseenOrder.id));
       }
 
-      // 🔥 Always check if alarm should run or stop
+      const newUnseenMessage = orderArray.find(order =>
+        order['Order Type'] === 'MESSAGE' &&
+        !seenMessages.has(order.id)
+      );
+      if (newUnseenMessage) {
+        setSeenMessages(prev => {
+          const updated = new Set(prev).add(newUnseenMessage.id);
+          localStorage.setItem('seenMessages', JSON.stringify(Array.from(updated)));
+          return updated;
+        });
+        messageAudio.current.play().catch(err => console.warn("Message alert failed:", err));
+      }
+
       const hasUnaccepted = orderArray.some(order =>
         (order['Order Type'] === 'PICK UP' || order['Order Type'] === 'DELIVERY') &&
         !accepted.has(order.id)
@@ -80,9 +92,8 @@ export default function KitchenDashboard() {
     fetchOrders();
     const interval = setInterval(fetchOrders, 5000);
     return () => clearInterval(interval);
-  }, [audioEnabled, accepted, seenOrders]);
+  }, [audioEnabled, accepted, seenOrders, seenMessages]);
 
-  // Accept order
   const acceptOrder = async (id) => {
     const timestamp = new Date().toISOString();
     setAccepted(prev => {
@@ -97,7 +108,6 @@ export default function KitchenDashboard() {
     });
   };
 
-  // Before dashboard is started
   if (!audioEnabled) {
     return (
       <div style={{ padding: '2rem', textAlign: 'center' }}>
@@ -115,9 +125,7 @@ export default function KitchenDashboard() {
                   alarmAudio.current.pause();
                   alarmAudio.current.currentTime = 0;
                 })
-                .catch(err => {
-                  console.warn("⚠️ Audio playback failed (maybe autoplay blocked):", err);
-                });
+                .catch(err => console.warn("Audio playback failed:", err));
             }
           }}
           style={{ fontSize: '1.2rem', padding: '0.5rem 1rem' }}
@@ -128,7 +136,6 @@ export default function KitchenDashboard() {
     );
   }
 
-  // Date helpers
   const today = new Date();
   const formatDate = (date) => {
     const d = new Date(date);
@@ -136,7 +143,6 @@ export default function KitchenDashboard() {
   };
   const todayStr = formatDate(today);
 
-  // Count of today's orders
   const dailyOrderCount = orders.filter(order =>
     formatDate(new Date(order['Order Date'])) === todayStr
   ).length;
@@ -157,8 +163,15 @@ export default function KitchenDashboard() {
   const displayedOrders = orders.filter(order => {
     const isAcceptedOrder = accepted.has(order.id);
     const isInDateRange = formatDate(new Date(order['Order Date'])) === todayStr;
-    return showAccepted ? isAcceptedOrder && isInDateRange : !isAcceptedOrder && isInDateRange;
-  }).sort((a, b) => new Date(b['Order Date']) - new Date(a['Order Date']));
+    return showAccepted
+      ? isAcceptedOrder && isInDateRange && order['Order Type'] !== 'MESSAGE'
+      : !isAcceptedOrder && isInDateRange && order['Order Type'] !== 'MESSAGE';
+  });
+
+  const displayedMessages = orders.filter(order =>
+    order['Order Type'] === 'MESSAGE' &&
+    formatDate(new Date(order['Message Date'])) === todayStr
+  );
 
   return (
     <div style={{ padding: '1rem', fontFamily: 'Arial' }}>
@@ -173,6 +186,18 @@ export default function KitchenDashboard() {
         {showAccepted ? 'Hide Accepted Orders' : 'View Accepted Orders'}
       </button>
 
+      {/* Messages */}
+      {displayedMessages.map(message => (
+        <div key={message.id} style={{ backgroundColor: '#fff3f4', border: '2px solid #ff4081', padding: '1rem', borderRadius: '8px', marginTop: '1rem' }}>
+          <h2>📨 New Message</h2>
+          <p><strong>Time:</strong> {new Date(message['Message Date']).toLocaleString()}</p>
+          <p><strong>Caller Name:</strong> {message['Caller Name'] || 'N/A'}</p>
+          <p><strong>Caller Phone:</strong> {message['Caller Phone'] || 'N/A'}</p>
+          <p><strong>Reason:</strong> {message['Message Reason'] || 'N/A'}</p>
+        </div>
+      ))}
+
+      {/* Orders */}
       <div style={{ display: 'grid', gap: '1rem', marginTop: '2rem' }}>
         {displayedOrders.map(order => (
           <div key={order.id} style={{ border: '1px solid #ccc', padding: '1.5rem', borderRadius: '8px', fontSize: '1.2rem' }}>
