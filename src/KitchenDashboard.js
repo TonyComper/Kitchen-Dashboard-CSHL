@@ -9,6 +9,8 @@ export default function KitchenDashboard() {
   const [showReadMessages, setShowReadMessages] = useState(false);
   const [audioEnabled, setAudioEnabled] = useState(false);
   const [showAccepted, setShowAccepted] = useState(false);
+  const [showArchived, setShowArchived] = useState(false);
+  const [archivedEntries, setArchivedEntries] = useState([]);
   const [now, setNow] = useState(Date.now());
   const alarmAudio = useRef(null);
   const messageAudio = useRef(null);
@@ -92,8 +94,6 @@ export default function KitchenDashboard() {
   useEffect(() => {
     if (!audioEnabled) return;
 
-    console.log("🚀 audioEnabled is true — dashboard logic running");
-
     const fetchOrders = async () => {
       const res = await fetch('https://qsr-orders-default-rtdb.firebaseio.com/orders.json');
       const data = await res.json();
@@ -114,7 +114,6 @@ export default function KitchenDashboard() {
       );
 
       if (newUnseenOrder) {
-        console.log("🔔 New unaccepted order detected:", newUnseenOrder.id);
         setSeenOrders(prev => {
           const updated = new Set(prev).add(newUnseenOrder.id);
           localStorage.setItem('seenOrders', JSON.stringify(Array.from(updated)));
@@ -123,9 +122,7 @@ export default function KitchenDashboard() {
 
         if (alarmAudio.current) {
           alarmAudio.current.currentTime = 0;
-          alarmAudio.current.play()
-            .then(() => console.log("✅ alert.mp3 playback started"))
-            .catch(err => console.warn("❌ alert.mp3 playback failed", err));
+          alarmAudio.current.play().catch(err => console.warn("❌ alert.mp3 playback failed", err));
         }
       }
 
@@ -134,17 +131,15 @@ export default function KitchenDashboard() {
       );
 
       if (newUnseenMessage) {
-        console.log("📨 Triggering message alert sound");
         setSeenMessages(prev => {
           const updated = new Set(prev).add(newUnseenMessage.id);
           localStorage.setItem('seenMessages', JSON.stringify(Array.from(updated)));
           return updated;
         });
+
         if (messageAudio.current) {
           messageAudio.current.currentTime = 0;
-          messageAudio.current.play()
-            .then(() => console.log("✅ message-alert.mp3 playback started"))
-            .catch(err => console.warn("❌ message-alert.mp3 playback failed", err));
+          messageAudio.current.play().catch(err => console.warn("❌ message-alert.mp3 playback failed", err));
         }
       }
     };
@@ -184,26 +179,15 @@ export default function KitchenDashboard() {
         <p>(c) 2025 RT7 USA Incorporated. All rights reserved.</p>
         <button
           onClick={async () => {
-            console.log("🔄 Dashboard button clicked");
-
             try {
               await archiveOldOrders();
               setAudioEnabled(true);
-
               if (alarmAudio.current) {
-                alarmAudio.current.currentTime = 0;
-                await alarmAudio.current.play().catch(err => console.warn("⚠️ Order alert playback failed:", err));
-                alarmAudio.current.pause();
-                alarmAudio.current.currentTime = 0;
+                alarmAudio.current.play().then(() => alarmAudio.current.pause());
               }
-
               if (messageAudio.current) {
-                messageAudio.current.currentTime = 0;
-                await messageAudio.current.play().catch(err => console.warn("⚠️ Message alert playback failed:", err));
-                messageAudio.current.pause();
-                messageAudio.current.currentTime = 0;
+                messageAudio.current.play().then(() => messageAudio.current.pause());
               }
-
             } catch (err) {
               console.warn("⚠️ Error during dashboard startup:", err);
             }
@@ -218,14 +202,6 @@ export default function KitchenDashboard() {
 
   const today = new Date();
   const todayStr = formatDate(today.toString());
-
-  const dailyOrderCount = orders.filter(order =>
-    formatDate(order['Order Date']) === todayStr
-  ).length;
-
-  const formattedDate = today.toLocaleDateString('en-US', {
-    weekday: 'long', year: 'numeric', month: 'long', day: 'numeric'
-  });
 
   const displayedOrders = orders.filter(order => {
     const isAcceptedOrder = accepted.has(order.id);
@@ -244,8 +220,7 @@ export default function KitchenDashboard() {
   return (
     <div style={{ padding: '1rem', fontFamily: 'Arial' }}>
       <h1>Orders and Messages - California Sandwiches Winston Churchill</h1>
-      <p><strong>Date:</strong> {formattedDate}</p>
-      <p><strong>Orders Today:</strong> {dailyOrderCount}</p>
+      <p><strong>Date:</strong> {today.toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</p>
 
       <button
         onClick={() => setShowAccepted(prev => !prev)}
@@ -259,6 +234,30 @@ export default function KitchenDashboard() {
         style={{ backgroundColor: '#6c757d', color: 'white', padding: '0.5rem 1rem' }}
       >
         {showReadMessages ? 'Hide Read Messages' : 'View Read Messages'}
+      </button>
+
+      <button
+        onClick={async () => {
+          if (!showArchived) {
+            const res = await fetch('https://qsr-orders-default-rtdb.firebaseio.com/archive.json');
+            const data = await res.json();
+            const allArchived = [];
+            Object.entries(data || {}).forEach(([dateKey, entries]) => {
+              Object.entries(entries).forEach(([id, entry]) => {
+                allArchived.push({ ...entry, id, archiveDate: dateKey });
+              });
+            });
+            allArchived.sort((a, b) =>
+              new Date(b['Order Date'] || b['Message Date']) -
+              new Date(a['Order Date'] || a['Message Date'])
+            );
+            setArchivedEntries(allArchived);
+          }
+          setShowArchived(prev => !prev);
+        }}
+        style={{ backgroundColor: '#343a40', color: 'white', padding: '0.5rem 1rem', marginLeft: '1rem' }}
+      >
+        {showArchived ? 'Hide Archived' : 'View Archived Orders/Messages'}
       </button>
 
       {displayedMessages.map(message => (
@@ -289,7 +288,7 @@ export default function KitchenDashboard() {
             )}
             {showAccepted && order['Accepted At'] && (
               <p style={{ color: 'green', fontWeight: 'bold' }}>
-                <strong>Accepted At:</strong> {order['Accepted At'] ? new Date(order['Accepted At']).toLocaleString() : 'N/A'}
+                <strong>Accepted At:</strong> {new Date(order['Accepted At']).toLocaleString()}
               </p>
             )}
             <p style={{ color: 'red', fontWeight: 'bold' }}><strong>Pickup Time:</strong> {order['Pickup Time']}</p>
@@ -317,6 +316,40 @@ export default function KitchenDashboard() {
           </div>
         ))}
       </div>
+
+      {showArchived && (
+        <div style={{ marginTop: '2rem' }}>
+          <h2>📦 Archived Orders & Messages</h2>
+          <div style={{ display: 'grid', gap: '1rem' }}>
+            {archivedEntries.map(entry => (
+              <div key={entry.id} style={{ backgroundColor: '#f0f0f0', border: '1px solid #ccc', padding: '1.5rem', borderRadius: '8px' }}>
+                <h3>{entry['Order Type'] === 'MESSAGE' ? '📨 Message' : `Order #${entry['Order ID'] || entry.id}`}</h3>
+                <p><strong>Date:</strong> {entry['Order Date'] || entry['Message Date'] || 'N/A'}</p>
+                {entry['Order Type'] === 'MESSAGE' ? (
+                  <>
+                    <p><strong>Caller Name:</strong> {entry['Caller_Name']}</p>
+                    <p><strong>Caller Phone:</strong> {entry['Caller_Phone']}</p>
+                    <p><strong>Reason:</strong> {entry['Message_Reason']}</p>
+                  </>
+                ) : (
+                  <>
+                    <p><strong>Customer:</strong> {entry['Customer Name']}</p>
+                    <p><strong>Order Type:</strong> {entry['Order Type']}</p>
+                    {entry['Delivery Address'] && <p><strong>Delivery Address:</strong> {entry['Delivery Address']}</p>}
+                    <p><strong>Pickup Time:</strong> {entry['Pickup Time']}</p>
+                    <p><strong>Total:</strong> {entry['Total Price']}</p>
+                    <ul>
+                      {entry['Order Items']?.split(',').map((item, index) => (
+                        <li key={index}>{item.trim()}</li>
+                      ))}
+                    </ul>
+                  </>
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
