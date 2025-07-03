@@ -1,26 +1,11 @@
 import React, { useEffect, useState, useRef } from 'react';
 
 export default function KitchenDashboard() {
-  // Clean old entries (over 3 days)
-  function cleanupOldEntries(obj) {
-    const now = Date.now();
-    const threeDays = 3 * 24 * 60 * 60 * 1000;
-    return Object.fromEntries(
-      Object.entries(obj).filter(([_, ts]) => now - new Date(ts).getTime() <= threeDays)
-    );
-  }
-
   const [orders, setOrders] = useState([]);
-  const [accepted, setAccepted] = useState(() => {
-    const raw = JSON.parse(localStorage.getItem('acceptedOrders') || '{}');
-    return cleanupOldEntries(raw);
-  });
+  const [accepted, setAccepted] = useState(new Set(JSON.parse(localStorage.getItem('acceptedOrders') || '[]')));
   const [seenOrders, setSeenOrders] = useState(new Set());
   const [seenMessages, setSeenMessages] = useState(new Set(JSON.parse(localStorage.getItem('seenMessages') || '[]')));
-  const [readMessages, setReadMessages] = useState(() => {
-    const raw = JSON.parse(localStorage.getItem('readMessages') || '{}');
-    return cleanupOldEntries(raw);
-  });
+  const [readMessages, setReadMessages] = useState(new Set(JSON.parse(localStorage.getItem('readMessages') || '[]')));
   const [showReadMessages, setShowReadMessages] = useState(false);
   const [audioEnabled, setAudioEnabled] = useState(false);
   const [showAccepted, setShowAccepted] = useState(false);
@@ -28,6 +13,50 @@ export default function KitchenDashboard() {
   const alarmIntervalRef = useRef(null);
   const alarmAudio = useRef(null);
   const messageAudio = useRef(null);
+
+  const isChrome = () => {
+    const userAgent = navigator.userAgent;
+    return /Chrome/.test(userAgent) && !/Edge|Edg|OPR|Brave|Chromium/.test(userAgent);
+  };
+
+  const formatDate = (rawDateStr) => {
+    if (!rawDateStr) return '';
+
+    let cleanStr = rawDateStr;
+
+    if (isChrome()) {
+      cleanStr = rawDateStr
+        .replace(/\s+at\s+/, ' ')
+        .replace(/\s*\([^)]*\)/g, '')
+        .trim();
+    }
+
+    const d = new Date(cleanStr);
+    if (isNaN(d)) return 'Invalid date';
+
+    return `${d.getFullYear()}-${(d.getMonth() + 1).toString().padStart(2, '0')}-${d.getDate().toString().padStart(2, '0')}`;
+  };
+
+  const getElapsedTime = (rawDateStr) => {
+    if (!rawDateStr) return 'Invalid date';
+
+    let cleanStr = rawDateStr;
+
+    if (isChrome()) {
+      cleanStr = rawDateStr
+        .replace(/\s+at\s+/, ' ')
+        .replace(/\s*\([^)]*\)/g, '')
+        .trim();
+    }
+
+    const orderDate = new Date(cleanStr);
+    if (isNaN(orderDate)) return 'Invalid date';
+
+    const elapsed = now - orderDate;
+    const minutes = Math.floor(elapsed / 60000);
+    const seconds = Math.floor((elapsed % 60000) / 1000);
+    return `${minutes}m ${seconds}s ago`;
+  };
 
   useEffect(() => {
     alarmAudio.current = new Audio('/alert.mp3');
@@ -50,7 +79,7 @@ export default function KitchenDashboard() {
     alarmIntervalRef.current = setInterval(() => {
       const hasUnacceptedOrders = orders.some(order =>
         (order['Order Type'] === 'PICK UP' || order['Order Type'] === 'DELIVERY') &&
-        !accepted.hasOwnProperty(order.id)
+        !accepted.has(order.id)
       );
       if (hasUnacceptedOrders) {
         alarmAudio.current.play().catch(err => console.warn("Alarm play failed:", err));
@@ -74,14 +103,15 @@ export default function KitchenDashboard() {
       }));
 
       orderArray.sort((a, b) =>
-        new Date(b['Order Date'] || b['Message Date']) - new Date(a['Order Date'] || a['Message Date'])
+        new Date(formatDate(b['Order Date'] || b['Message Date'])) -
+        new Date(formatDate(a['Order Date'] || a['Message Date']))
       );
 
       setOrders(orderArray);
 
       const newUnseenOrder = orderArray.find(order =>
         !seenOrders.has(order.id) &&
-        !accepted.hasOwnProperty(order.id) &&
+        !accepted.has(order.id) &&
         order['Order Type'] !== 'MESSAGE' &&
         order['Order Items']
       );
@@ -110,7 +140,7 @@ export default function KitchenDashboard() {
 
       const hasUnaccepted = orderArray.some(order =>
         (order['Order Type'] === 'PICK UP' || order['Order Type'] === 'DELIVERY') &&
-        !accepted.hasOwnProperty(order.id)
+        !accepted.has(order.id)
       );
       if (hasUnaccepted) {
         triggerGlobalAlarm();
@@ -128,8 +158,8 @@ export default function KitchenDashboard() {
   const acceptOrder = async (id) => {
     const timestamp = new Date().toISOString();
     setAccepted(prev => {
-      const updated = { ...prev, [id]: timestamp };
-      localStorage.setItem('acceptedOrders', JSON.stringify(updated));
+      const updated = new Set(prev).add(id);
+      localStorage.setItem('acceptedOrders', JSON.stringify(Array.from(updated)));
       return updated;
     });
     await fetch(`https://qsr-orders-default-rtdb.firebaseio.com/orders/${id}.json`, {
@@ -141,8 +171,8 @@ export default function KitchenDashboard() {
 
   const markMessageAsRead = (id) => {
     setReadMessages(prev => {
-      const updated = { ...prev, [id]: new Date().toISOString() };
-      localStorage.setItem('readMessages', JSON.stringify(updated));
+      const updated = new Set(prev).add(id);
+      localStorage.setItem('readMessages', JSON.stringify(Array.from(updated)));
       return updated;
     });
   };
@@ -168,7 +198,7 @@ export default function KitchenDashboard() {
                 console.log("✅ Message alert playback allowed");
                 messageAudio.current.pause();
                 messageAudio.current.currentTime = 0;
-              }).catch(err => console.warn("Message alert playback failed:", err));
+              }).catch(err => console.warn("Message alert playback failed", err));
             }
           }}
           style={{ fontSize: '1.2rem', padding: '0.5rem 1rem' }}
@@ -180,32 +210,19 @@ export default function KitchenDashboard() {
   }
 
   const today = new Date();
-  const formatDate = (date) => {
-    const d = new Date(date);
-    return `${d.getFullYear()}-${(d.getMonth() + 1).toString().padStart(2, '0')}-${d.getDate().toString().padStart(2, '0')}`;
-  };
   const todayStr = formatDate(today);
 
   const dailyOrderCount = orders.filter(order =>
-    formatDate(new Date(order['Order Date'])) === todayStr
+    formatDate(order['Order Date']) === todayStr
   ).length;
-
-  const getElapsedTime = (dateStr) => {
-    const orderDate = new Date(dateStr);
-    if (isNaN(orderDate)) return "Invalid date";
-    const elapsed = now - orderDate;
-    const minutes = Math.floor(elapsed / 60000);
-    const seconds = Math.floor((elapsed % 60000) / 1000);
-    return `${minutes}m ${seconds}s ago`;
-  };
 
   const formattedDate = today.toLocaleDateString('en-US', {
     weekday: 'long', year: 'numeric', month: 'long', day: 'numeric'
   });
 
   const displayedOrders = orders.filter(order => {
-    const isAcceptedOrder = accepted.hasOwnProperty(order.id);
-    const isInDateRange = formatDate(new Date(order['Order Date'])) === todayStr;
+    const isAcceptedOrder = accepted.has(order.id);
+    const isInDateRange = formatDate(order['Order Date']) === todayStr;
     return showAccepted
       ? isAcceptedOrder && isInDateRange && order['Order Type'] !== 'MESSAGE'
       : !isAcceptedOrder && isInDateRange && order['Order Type'] !== 'MESSAGE';
@@ -213,8 +230,8 @@ export default function KitchenDashboard() {
 
   const displayedMessages = orders.filter(order =>
     order['Order Type'] === 'MESSAGE' &&
-    formatDate(new Date(order['Message Date'])) === todayStr &&
-    (showReadMessages ? readMessages.hasOwnProperty(order.id) : !readMessages.hasOwnProperty(order.id))
+    formatDate(order['Message Date']) === todayStr &&
+    (showReadMessages ? readMessages.has(order.id) : !readMessages.has(order.id))
   );
 
   return (
@@ -260,22 +277,22 @@ export default function KitchenDashboard() {
               <p><strong>Delivery Address:</strong> {order['Delivery Address']}</p>
             )}
             <p><strong>Order Date:</strong> {order['Order Date']}</p>
+            {!showAccepted && order['Order Date'] && (
+              <p><strong>Elapsed Time:</strong> <span style={{ color: 'goldenrod' }}>{getElapsedTime(order['Order Date'])}</span></p>
+            )}
             {showAccepted && order['Accepted At'] && (
               <p style={{ color: 'green', fontWeight: 'bold' }}>
                 <strong>Accepted At:</strong> {new Date(order['Accepted At']).toLocaleString()}
               </p>
             )}
-            {!showAccepted && order['Order Date'] && (
-              <p><strong>Elapsed Time:</strong> <span style={{ color: 'goldenrod' }}>{getElapsedTime(order['Order Date'])}</span></p>
-            )}
             <p style={{ color: 'red', fontWeight: 'bold' }}><strong>Pickup Time:</strong> {order['Pickup Time']}</p>
             <p><strong>Total:</strong> {order['Total Price']}</p>
             <ul>
-              {order['Order Items'].split(',').map((item, index) => (
+              {order['Order Items']?.split(',').map((item, index) => (
                 <li key={index}>{item.trim()}</li>
               ))}
             </ul>
-            {!accepted.hasOwnProperty(order.id) && (
+            {!accepted.has(order.id) && (
               <button
                 onClick={() => acceptOrder(order.id)}
                 style={{
