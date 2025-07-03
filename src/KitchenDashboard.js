@@ -14,15 +14,15 @@ export default function KitchenDashboard() {
   const alarmAudio = useRef(null);
   const messageAudio = useRef(null);
 
-  const parseDate = (input) => {
-    if (!input) return null;
-    const iso = new Date(input);
-    if (!isNaN(iso)) return iso;
+  function parseDate(input) {
+    if (!input || typeof input !== 'string') return null;
     const cleaned = input.replace(/\(.*?\)/g, '').trim();
-    const fallback = new Date(cleaned);
-    if (!isNaN(fallback)) return fallback;
+    const parsed = new Date(cleaned);
+    if (!isNaN(parsed)) return parsed;
+    const isoParsed = new Date(input);
+    if (!isNaN(isoParsed)) return isoParsed;
     return null;
-  };
+  }
 
   useEffect(() => {
     alarmAudio.current = new Audio('/alert.mp3');
@@ -177,7 +177,8 @@ export default function KitchenDashboard() {
   const today = new Date();
   const formatDate = (date) => {
     const d = parseDate(date);
-    return d ? `${d.getFullYear()}-${(d.getMonth() + 1).toString().padStart(2, '0')}-${d.getDate().toString().padStart(2, '0')}` : '';
+    if (!d) return '';
+    return `${d.getFullYear()}-${(d.getMonth() + 1).toString().padStart(2, '0')}-${d.getDate().toString().padStart(2, '0')}`;
   };
   const todayStr = formatDate(today);
 
