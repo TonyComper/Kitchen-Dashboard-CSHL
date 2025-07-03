@@ -31,8 +31,8 @@ export default function KitchenDashboard() {
     messageAudio.current = new Audio('/message-alert.mp3');
     messageAudio.current.load();
 
-    messageAudio.current.onplay = () => console.log("🔊 message-alert.mp3 is playing");
-    messageAudio.current.onerror = (e) => console.warn("❌ message-alert.mp3 failed to play", e);
+    messageAudio.current.onplay = () => console.log("\ud83d\udd0a message-alert.mp3 is playing");
+    messageAudio.current.onerror = (e) => console.warn("\u274c message-alert.mp3 failed to play", e);
   }, []);
 
   useEffect(() => {
@@ -89,7 +89,7 @@ export default function KitchenDashboard() {
         !seenMessages.has(order.id)
       );
       if (newUnseenMessage) {
-        console.log("📨 Triggering message alert sound");
+        console.log("\ud83d\udce8 Triggering message alert sound");
         setSeenMessages(prev => {
           const updated = new Set(prev).add(newUnseenMessage.id);
           localStorage.setItem('seenMessages', JSON.stringify(Array.from(updated)));
@@ -98,8 +98,8 @@ export default function KitchenDashboard() {
         if (messageAudio.current) {
           messageAudio.current.currentTime = 0;
           messageAudio.current.play()
-            .then(() => console.log("✅ message-alert.mp3 playback started"))
-            .catch(err => console.warn("❌ message-alert.mp3 playback failed", err));
+            .then(() => console.log("\u2705 message-alert.mp3 playback started"))
+            .catch(err => console.warn("\u274c message-alert.mp3 playback failed", err));
         }
       }
 
@@ -153,14 +153,14 @@ export default function KitchenDashboard() {
             setAudioEnabled(true);
             if (alarmAudio.current) {
               alarmAudio.current.play().then(() => {
-                console.log("✅ Order alert playback allowed");
+                console.log("\u2705 Order alert playback allowed");
                 alarmAudio.current.pause();
                 alarmAudio.current.currentTime = 0;
               }).catch(err => console.warn("Order alert playback failed:", err));
             }
             if (messageAudio.current) {
               messageAudio.current.play().then(() => {
-                console.log("✅ Message alert playback allowed");
+                console.log("\u2705 Message alert playback allowed");
                 messageAudio.current.pause();
                 messageAudio.current.currentTime = 0;
               }).catch(err => console.warn("Message alert playback failed:", err));
@@ -172,8 +172,9 @@ export default function KitchenDashboard() {
         </button>
       </div>
     );
-  }
 
+  // Remaining render logic continues here
+}
   const today = new Date();
   const formatDate = (date) => {
     const d = parseDate(date);
