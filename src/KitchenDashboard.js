@@ -16,12 +16,13 @@ export default function KitchenDashboard() {
 
   function parseDate(input) {
     if (!input || typeof input !== 'string') return null;
-    const cleaned = input.replace(/\(.*?\)/g, '').trim();
-    const parsed = new Date(cleaned);
-    if (!isNaN(parsed)) return parsed;
-    const isoParsed = new Date(input);
-    if (!isNaN(isoParsed)) return isoParsed;
-    return null;
+    try {
+      const cleaned = input.replace(/\(.*?\)/g, '').trim();
+      const parsed = new Date(cleaned);
+      return isNaN(parsed) ? null : parsed;
+    } catch {
+      return null;
+    }
   }
 
   useEffect(() => {
@@ -30,9 +31,6 @@ export default function KitchenDashboard() {
 
     messageAudio.current = new Audio('/message-alert.mp3');
     messageAudio.current.load();
-
-    messageAudio.current.onplay = () => console.log("\ud83d\udd0a message-alert.mp3 is playing");
-    messageAudio.current.onerror = (e) => console.warn("\u274c message-alert.mp3 failed to play", e);
   }, []);
 
   useEffect(() => {
@@ -48,7 +46,7 @@ export default function KitchenDashboard() {
         !accepted.has(order.id)
       );
       if (hasUnacceptedOrders) {
-        alarmAudio.current.play().catch(err => console.warn("Alarm play failed:", err));
+        alarmAudio.current.play().catch(() => {});
       } else {
         clearInterval(alarmIntervalRef.current);
         alarmIntervalRef.current = null;
@@ -63,14 +61,13 @@ export default function KitchenDashboard() {
       const res = await fetch('https://qsr-orders-default-rtdb.firebaseio.com/orders.json');
       const data = await res.json();
 
-      const orderArray = Object.entries(data || {}).map(([id, order]) => ({
-        id,
-        ...order
-      }));
+      const orderArray = Object.entries(data || {}).map(([id, order]) => ({ id, ...order }));
 
-      orderArray.sort((a, b) =>
-        parseDate(b['Order Date'] || b['Message Date']) - parseDate(a['Order Date'] || a['Message Date'])
-      );
+      orderArray.sort((a, b) => {
+        const dateA = parseDate(a['Order Date'] || a['Message Date']);
+        const dateB = parseDate(b['Order Date'] || b['Message Date']);
+        return (dateB || 0) - (dateA || 0);
+      });
 
       setOrders(orderArray);
 
@@ -89,17 +86,14 @@ export default function KitchenDashboard() {
         !seenMessages.has(order.id)
       );
       if (newUnseenMessage) {
-        console.log("\ud83d\udce8 Triggering message alert sound");
         setSeenMessages(prev => {
           const updated = new Set(prev).add(newUnseenMessage.id);
-          localStorage.setItem('seenMessages', JSON.stringify(Array.from(updated)));
+          localStorage.setItem('seenMessages', JSON.stringify([...updated]));
           return updated;
         });
         if (messageAudio.current) {
           messageAudio.current.currentTime = 0;
-          messageAudio.current.play()
-            .then(() => console.log("\u2705 message-alert.mp3 playback started"))
-            .catch(err => console.warn("\u274c message-alert.mp3 playback failed", err));
+          messageAudio.current.play().catch(() => {});
         }
       }
 
@@ -124,7 +118,7 @@ export default function KitchenDashboard() {
     const timestamp = new Date().toISOString();
     setAccepted(prev => {
       const updated = new Set(prev).add(id);
-      localStorage.setItem('acceptedOrders', JSON.stringify(Array.from(updated)));
+      localStorage.setItem('acceptedOrders', JSON.stringify([...updated]));
       return updated;
     });
     await fetch(`https://qsr-orders-default-rtdb.firebaseio.com/orders/${id}.json`, {
@@ -137,7 +131,7 @@ export default function KitchenDashboard() {
   const markMessageAsRead = (id) => {
     setReadMessages(prev => {
       const updated = new Set(prev).add(id);
-      localStorage.setItem('readMessages', JSON.stringify(Array.from(updated)));
+      localStorage.setItem('readMessages', JSON.stringify([...updated]));
       return updated;
     });
   };
@@ -146,150 +140,70 @@ export default function KitchenDashboard() {
     return (
       <div style={{ padding: '2rem', textAlign: 'center' }}>
         <h1>Orders and Messages Dashboard</h1>
-        <p>Please click the button below to start the dashboard and enable sound alerts.</p>
-        <p>(c) 2025 RT7 USA Incorporated. All rights reserved.</p>
-        <button
-          onClick={() => {
-            setAudioEnabled(true);
-            if (alarmAudio.current) {
-              alarmAudio.current.play().then(() => {
-                console.log("\u2705 Order alert playback allowed");
-                alarmAudio.current.pause();
-                alarmAudio.current.currentTime = 0;
-              }).catch(err => console.warn("Order alert playback failed:", err));
-            }
-            if (messageAudio.current) {
-              messageAudio.current.play().then(() => {
-                console.log("\u2705 Message alert playback allowed");
-                messageAudio.current.pause();
-                messageAudio.current.currentTime = 0;
-              }).catch(err => console.warn("Message alert playback failed:", err));
-            }
-          }}
-          style={{ fontSize: '1.2rem', padding: '0.5rem 1rem' }}
-        >
-          Start Dashboard
-        </button>
+        <p>Click below to start and enable alerts.</p>
+        <button onClick={() => setAudioEnabled(true)} style={{ padding: '1rem', fontSize: '1rem' }}>Start Dashboard</button>
       </div>
     );
+  }
 
-  // Remaining render logic continues here
-}
-  const today = new Date();
   const formatDate = (date) => {
     const d = parseDate(date);
-    if (!d) return '';
-    return `${d.getFullYear()}-${(d.getMonth() + 1).toString().padStart(2, '0')}-${d.getDate().toString().padStart(2, '0')}`;
-  };
-  const todayStr = formatDate(today);
-
-  const dailyOrderCount = orders.filter(order =>
-    formatDate(order['Order Date']) === todayStr
-  ).length;
-
-  const getElapsedTime = (dateStr) => {
-    const orderDate = parseDate(dateStr);
-    if (!orderDate) return "Invalid date";
-    const elapsed = now - orderDate;
-    const minutes = Math.floor(elapsed / 60000);
-    const seconds = Math.floor((elapsed % 60000) / 1000);
-    return `${minutes}m ${seconds}s ago`;
+    return !d ? '' : `${d.getFullYear()}-${(d.getMonth() + 1).toString().padStart(2, '0')}-${d.getDate().toString().padStart(2, '0')}`;
   };
 
-  const formattedDate = today.toLocaleDateString('en-US', {
-    weekday: 'long', year: 'numeric', month: 'long', day: 'numeric'
-  });
+  const today = formatDate(new Date());
 
-  const displayedOrders = orders.filter(order => {
-    const isAcceptedOrder = accepted.has(order.id);
-    const isInDateRange = formatDate(order['Order Date']) === todayStr;
-    return showAccepted
-      ? isAcceptedOrder && isInDateRange && order['Order Type'] !== 'MESSAGE'
-      : !isAcceptedOrder && isInDateRange && order['Order Type'] !== 'MESSAGE';
-  });
+  const filteredOrders = orders.filter(order =>
+    formatDate(order['Order Date']) === today &&
+    (showAccepted ? accepted.has(order.id) : !accepted.has(order.id)) &&
+    order['Order Type'] !== 'MESSAGE'
+  );
 
-  const displayedMessages = orders.filter(order =>
+  const filteredMessages = orders.filter(order =>
     order['Order Type'] === 'MESSAGE' &&
-    formatDate(order['Message Date']) === todayStr &&
+    formatDate(order['Message Date']) === today &&
     (showReadMessages ? readMessages.has(order.id) : !readMessages.has(order.id))
   );
 
   return (
     <div style={{ padding: '1rem', fontFamily: 'Arial' }}>
       <h1>Orders and Messages - California Sandwiches Winston Churchill</h1>
-      <p><strong>Date:</strong> {formattedDate}</p>
-      <p><strong>Orders Today:</strong> {dailyOrderCount}</p>
+      <div>
+        <button onClick={() => setShowAccepted(s => !s)}>{showAccepted ? 'Hide Accepted' : 'View Accepted'}</button>
+        <button onClick={() => setShowReadMessages(s => !s)}>{showReadMessages ? 'Hide Read Messages' : 'View Read Messages'}</button>
+      </div>
 
-      <button
-        onClick={() => setShowAccepted(prev => !prev)}
-        style={{ marginRight: '1rem', backgroundColor: 'red', color: 'white', padding: '0.5rem 1rem' }}
-      >
-        {showAccepted ? 'Hide Accepted Orders' : 'View Accepted Orders'}
-      </button>
-
-      <button
-        onClick={() => setShowReadMessages(prev => !prev)}
-        style={{ backgroundColor: '#6c757d', color: 'white', padding: '0.5rem 1rem' }}
-      >
-        {showReadMessages ? 'Hide Read Messages' : 'View Read Messages'}
-      </button>
-
-      {displayedMessages.map(message => (
-        <div key={message.id} style={{ backgroundColor: '#fff3f4', border: '2px solid #ff4081', padding: '1rem', borderRadius: '8px', marginTop: '1rem' }}>
-          <h2>📨 {showReadMessages ? 'Read Message' : 'New Message'}</h2>
-          <p><strong>Time:</strong> {message['Message Date'] || 'N/A'}</p>
-          <p><strong>Caller Name:</strong> {message['Caller_Name'] || 'N/A'}</p>
-          <p><strong>Caller Phone:</strong> {message['Caller_Phone'] || 'N/A'}</p>
-          <p><strong>Reason:</strong> {message['Message_Reason'] || 'N/A'}</p>
+      {filteredMessages.map(msg => (
+        <div key={msg.id} style={{ background: '#ffeaea', margin: '1rem 0', padding: '1rem', borderRadius: '8px' }}>
+          <h3>📨 {showReadMessages ? 'Read Message' : 'New Message'}</h3>
+          <p><strong>Time:</strong> {msg['Message Date']}</p>
+          <p><strong>Name:</strong> {msg['Caller_Name']}</p>
+          <p><strong>Phone:</strong> {msg['Caller_Phone']}</p>
+          <p><strong>Reason:</strong> {msg['Message_Reason']}</p>
           {!showReadMessages && (
-            <button onClick={() => markMessageAsRead(message.id)} style={{ marginTop: '0.5rem', backgroundColor: '#d6336c', color: 'white', padding: '0.5rem 1rem', border: 'none', borderRadius: '4px' }}>Mark As Read</button>
+            <button onClick={() => markMessageAsRead(msg.id)}>Mark As Read</button>
           )}
         </div>
       ))}
 
-      <div style={{ display: 'grid', gap: '1rem', marginTop: '2rem' }}>
-        {displayedOrders.map(order => (
-          <div key={order.id} style={{ backgroundColor: '#e6f9e6', border: '1px solid #ccc', padding: '1.5rem', borderRadius: '8px', fontSize: '1.2rem' }}>
-            <h2>Order #{order['Order ID']}</h2>
-            <p><strong>Customer:</strong> {order['Customer Name']}</p>
-            <p><strong>Order Type:</strong> {order['Order Type'] || 'N/A'}</p>
-            {order['Order Type']?.toLowerCase() === 'delivery' && (
-              <p><strong>Delivery Address:</strong> {order['Delivery Address']}</p>
-            )}
-            <p><strong>Order Date:</strong> {order['Order Date']}</p>
-            {showAccepted && order['Accepted At'] && (
-              <p style={{ color: 'green', fontWeight: 'bold' }}>
-                <strong>Accepted At:</strong> {new Date(order['Accepted At']).toLocaleString()}
-              </p>
-            )}
-            {!showAccepted && order['Order Date'] && (
-              <p><strong>Elapsed Time:</strong> <span style={{ color: 'goldenrod' }}>{getElapsedTime(order['Order Date'])}</span></p>
-            )}
-            <p style={{ color: 'red', fontWeight: 'bold' }}><strong>Pickup Time:</strong> {order['Pickup Time']}</p>
-            <p><strong>Total:</strong> {order['Total Price']}</p>
-            <ul>
-              {order['Order Items'].split(',').map((item, index) => (
-                <li key={index}>{item.trim()}</li>
-              ))}
-            </ul>
-            {!accepted.has(order.id) && (
-              <button
-                onClick={() => acceptOrder(order.id)}
-                style={{
-                  marginTop: '1rem',
-                  backgroundColor: '#28a745',
-                  color: 'white',
-                  padding: '0.5rem 1rem',
-                  border: 'none',
-                  borderRadius: '4px'
-                }}
-              >
-                ACCEPT
-              </button>
-            )}
-          </div>
-        ))}
-      </div>
+      {filteredOrders.map(order => (
+        <div key={order.id} style={{ background: '#e6f9e6', padding: '1rem', margin: '1rem 0', borderRadius: '8px' }}>
+          <h2>Order #{order['Order ID']}</h2>
+          <p><strong>Customer:</strong> {order['Customer Name']}</p>
+          <p><strong>Type:</strong> {order['Order Type']}</p>
+          {order['Order Type'] === 'DELIVERY' && (
+            <p><strong>Address:</strong> {order['Delivery Address']}</p>
+          )}
+          <p><strong>Pickup Time:</strong> {order['Pickup Time']}</p>
+          <p><strong>Total:</strong> {order['Total Price']}</p>
+          <ul>
+            {(order['Order Items'] || '').split(',').map((item, idx) => <li key={idx}>{item.trim()}</li>)}
+          </ul>
+          {!accepted.has(order.id) && (
+            <button onClick={() => acceptOrder(order.id)}>Accept</button>
+          )}
+        </div>
+      ))}
     </div>
   );
 }
