@@ -14,15 +14,6 @@ export default function KitchenDashboard() {
   const alarmAudio = useRef(null);
   const messageAudio = useRef(null);
 
-  function parseDate(input) {
-    if (!input || typeof input !== 'string') return null;
-    const safariFormatted = input.replace(/ at /, ', ').replace(/\(.*?\)/g, '').trim();
-    const parsed = new Date(safariFormatted);
-    if (!isNaN(parsed)) return parsed;
-    const fallback = new Date(input);
-    return !isNaN(fallback) ? fallback : null;
-  }
-
   useEffect(() => {
     alarmAudio.current = new Audio('/alert.mp3');
     alarmAudio.current.load();
@@ -62,10 +53,13 @@ export default function KitchenDashboard() {
       const res = await fetch('https://qsr-orders-default-rtdb.firebaseio.com/orders.json');
       const data = await res.json();
 
-      const orderArray = Object.entries(data || {}).map(([id, order]) => ({ id, ...order }));
+      const orderArray = Object.entries(data || {}).map(([id, order]) => ({
+        id,
+        ...order
+      }));
 
       orderArray.sort((a, b) =>
-        parseDate(b['Order Date'] || b['Message Date']) - parseDate(a['Order Date'] || a['Message Date'])
+        new Date(b['Order Date'] || b['Message Date']) - new Date(a['Order Date'] || a['Message Date'])
       );
 
       setOrders(orderArray);
@@ -116,9 +110,7 @@ export default function KitchenDashboard() {
     return () => clearInterval(interval);
   }, [audioEnabled, accepted, seenOrders, seenMessages]);
 
-  // Remainder of the component continues unchanged
-
-    const acceptOrder = async (id) => {
+  const acceptOrder = async (id) => {
     const timestamp = new Date().toISOString();
     setAccepted(prev => {
       const updated = new Set(prev).add(id);
@@ -174,19 +166,18 @@ export default function KitchenDashboard() {
 
   const today = new Date();
   const formatDate = (date) => {
-    const d = parseDate(date);
-    if (!d) return '';
+    const d = new Date(date);
     return `${d.getFullYear()}-${(d.getMonth() + 1).toString().padStart(2, '0')}-${d.getDate().toString().padStart(2, '0')}`;
   };
   const todayStr = formatDate(today);
 
   const dailyOrderCount = orders.filter(order =>
-    formatDate(order['Order Date']) === todayStr
+    formatDate(new Date(order['Order Date'])) === todayStr
   ).length;
 
   const getElapsedTime = (dateStr) => {
-    const orderDate = parseDate(dateStr);
-    if (!orderDate) return "Invalid date";
+    const orderDate = new Date(dateStr);
+    if (isNaN(orderDate)) return "Invalid date";
     const elapsed = now - orderDate;
     const minutes = Math.floor(elapsed / 60000);
     const seconds = Math.floor((elapsed % 60000) / 1000);
@@ -199,7 +190,7 @@ export default function KitchenDashboard() {
 
   const displayedOrders = orders.filter(order => {
     const isAcceptedOrder = accepted.has(order.id);
-    const isInDateRange = formatDate(order['Order Date']) === todayStr;
+    const isInDateRange = formatDate(new Date(order['Order Date'])) === todayStr;
     return showAccepted
       ? isAcceptedOrder && isInDateRange && order['Order Type'] !== 'MESSAGE'
       : !isAcceptedOrder && isInDateRange && order['Order Type'] !== 'MESSAGE';
@@ -207,7 +198,7 @@ export default function KitchenDashboard() {
 
   const displayedMessages = orders.filter(order =>
     order['Order Type'] === 'MESSAGE' &&
-    formatDate(order['Message Date']) === todayStr &&
+    formatDate(new Date(order['Message Date'])) === todayStr &&
     (showReadMessages ? readMessages.has(order.id) : !readMessages.has(order.id))
   );
 
