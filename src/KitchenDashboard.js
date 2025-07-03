@@ -3,14 +3,13 @@ import React, { useEffect, useState, useRef } from 'react';
 export default function KitchenDashboard() {
   const [orders, setOrders] = useState([]);
   const [accepted, setAccepted] = useState(new Set(JSON.parse(localStorage.getItem('acceptedOrders') || '[]')));
-  const [seenOrders, setSeenOrders] = useState(new Set());
+  const [seenOrders, setSeenOrders] = useState(new Set(JSON.parse(localStorage.getItem('seenOrders') || '[]')));
   const [seenMessages, setSeenMessages] = useState(new Set(JSON.parse(localStorage.getItem('seenMessages') || '[]')));
   const [readMessages, setReadMessages] = useState(new Set(JSON.parse(localStorage.getItem('readMessages') || '[]')));
   const [showReadMessages, setShowReadMessages] = useState(false);
   const [audioEnabled, setAudioEnabled] = useState(false);
   const [showAccepted, setShowAccepted] = useState(false);
   const [now, setNow] = useState(Date.now());
-  const alarmIntervalRef = useRef(null);
   const alarmAudio = useRef(null);
   const messageAudio = useRef(null);
 
@@ -74,22 +73,6 @@ export default function KitchenDashboard() {
     return () => clearInterval(timer);
   }, []);
 
-  const triggerGlobalAlarm = () => {
-    if (alarmIntervalRef.current) return;
-    alarmIntervalRef.current = setInterval(() => {
-      const hasUnacceptedOrders = orders.some(order =>
-        (order['Order Type'] === 'PICK UP' || order['Order Type'] === 'DELIVERY') &&
-        !accepted.has(order.id)
-      );
-      if (hasUnacceptedOrders) {
-        alarmAudio.current.play().catch(err => console.warn("Alarm play failed:", err));
-      } else {
-        clearInterval(alarmIntervalRef.current);
-        alarmIntervalRef.current = null;
-      }
-    }, 10000);
-  };
-
   useEffect(() => {
     if (!audioEnabled) return;
 
@@ -117,8 +100,21 @@ export default function KitchenDashboard() {
         order['Order Type'] !== 'MESSAGE' &&
         order['Order Items']
       );
+
       if (newUnseenOrder) {
-        setSeenOrders(prev => new Set(prev).add(newUnseenOrder.id));
+        console.log("🔔 New unaccepted order detected:", newUnseenOrder.id);
+        setSeenOrders(prev => {
+          const updated = new Set(prev).add(newUnseenOrder.id);
+          localStorage.setItem('seenOrders', JSON.stringify(Array.from(updated)));
+          return updated;
+        });
+
+        if (alarmAudio.current) {
+          alarmAudio.current.currentTime = 0;
+          alarmAudio.current.play()
+            .then(() => console.log("✅ alert.mp3 playback started"))
+            .catch(err => console.warn("❌ alert.mp3 playback failed", err));
+        }
       }
 
       const newUnseenMessage = orderArray.find(order =>
@@ -138,17 +134,6 @@ export default function KitchenDashboard() {
             .then(() => console.log("✅ message-alert.mp3 playback started"))
             .catch(err => console.warn("❌ message-alert.mp3 playback failed", err));
         }
-      }
-
-      const hasUnaccepted = orderArray.some(order =>
-        (order['Order Type'] === 'PICK UP' || order['Order Type'] === 'DELIVERY') &&
-        !accepted.has(order.id)
-      );
-      if (hasUnaccepted) {
-        triggerGlobalAlarm();
-      } else if (alarmIntervalRef.current) {
-        clearInterval(alarmIntervalRef.current);
-        alarmIntervalRef.current = null;
       }
     };
 
@@ -225,7 +210,7 @@ export default function KitchenDashboard() {
   }
 
   const today = new Date();
-  const todayStr = formatDate(today);
+  const todayStr = formatDate(today.toString());
 
   const dailyOrderCount = orders.filter(order =>
     formatDate(order['Order Date']) === todayStr
@@ -297,7 +282,7 @@ export default function KitchenDashboard() {
             )}
             {showAccepted && order['Accepted At'] && (
               <p style={{ color: 'green', fontWeight: 'bold' }}>
-                <strong>Accepted At:</strong> {new Date(order['Accepted At']).toLocaleString()}
+                <strong>Accepted At:</strong> {order['Accepted At'] ? new Date(order['Accepted At']).toLocaleString() : 'N/A'}
               </p>
             )}
             <p style={{ color: 'red', fontWeight: 'bold' }}><strong>Pickup Time:</strong> {order['Pickup Time']}</p>
