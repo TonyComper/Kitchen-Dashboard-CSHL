@@ -22,10 +22,10 @@ export default function KitchenDashboard() {
   const formatDate = (rawDateStr) => {
     if (!rawDateStr) return '';
 
-    let cleanStr = rawDateStr;
+    let cleanStr = String(rawDateStr);
 
     if (isChrome()) {
-      cleanStr = rawDateStr
+      cleanStr = cleanStr
         .replace(/\s+at\s+/, ' ')
         .replace(/\s*\([^)]*\)/g, '')
         .trim();
@@ -40,10 +40,10 @@ export default function KitchenDashboard() {
   const getElapsedTime = (rawDateStr) => {
     if (!rawDateStr) return 'Invalid date';
 
-    let cleanStr = rawDateStr;
+    let cleanStr = String(rawDateStr);
 
     if (isChrome()) {
-      cleanStr = rawDateStr
+      cleanStr = cleanStr
         .replace(/\s+at\s+/, ' ')
         .replace(/\s*\([^)]*\)/g, '')
         .trim();
@@ -92,6 +92,8 @@ export default function KitchenDashboard() {
 
   useEffect(() => {
     if (!audioEnabled) return;
+
+    console.log("🚀 audioEnabled is true — dashboard logic running");
 
     const fetchOrders = async () => {
       const res = await fetch('https://qsr-orders-default-rtdb.firebaseio.com/orders.json');
@@ -185,20 +187,33 @@ export default function KitchenDashboard() {
         <p>(c) 2025 RT7 USA Incorporated. All rights reserved.</p>
         <button
           onClick={() => {
+            console.log("🔄 Dashboard button clicked");
             setAudioEnabled(true);
-            if (alarmAudio.current) {
-              alarmAudio.current.play().then(() => {
-                console.log("✅ Order alert playback allowed");
-                alarmAudio.current.pause();
+
+            try {
+              if (alarmAudio.current) {
                 alarmAudio.current.currentTime = 0;
-              }).catch(err => console.warn("Order alert playback failed:", err));
-            }
-            if (messageAudio.current) {
-              messageAudio.current.play().then(() => {
-                console.log("✅ Message alert playback allowed");
-                messageAudio.current.pause();
+                alarmAudio.current.play()
+                  .then(() => {
+                    console.log("✅ Order alert playback allowed");
+                    alarmAudio.current.pause();
+                    alarmAudio.current.currentTime = 0;
+                  })
+                  .catch(err => console.warn("⚠️ Order alert playback failed:", err));
+              }
+
+              if (messageAudio.current) {
                 messageAudio.current.currentTime = 0;
-              }).catch(err => console.warn("Message alert playback failed", err));
+                messageAudio.current.play()
+                  .then(() => {
+                    console.log("✅ Message alert playback allowed");
+                    messageAudio.current.pause();
+                    messageAudio.current.currentTime = 0;
+                  })
+                  .catch(err => console.warn("⚠️ Message alert playback failed:", err));
+              }
+            } catch (e) {
+              console.warn("⚠️ Error during audio warmup:", e);
             }
           }}
           style={{ fontSize: '1.2rem', padding: '0.5rem 1rem' }}
