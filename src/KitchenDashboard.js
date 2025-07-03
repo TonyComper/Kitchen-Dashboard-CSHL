@@ -117,9 +117,8 @@ export default function KitchenDashboard() {
   }, [audioEnabled, accepted, seenOrders, seenMessages]);
 
   // Remainder of the component continues unchanged
-}
 
-  const acceptOrder = async (id) => {
+    const acceptOrder = async (id) => {
     const timestamp = new Date().toISOString();
     setAccepted(prev => {
       const updated = new Set(prev).add(id);
