@@ -1,4 +1,4 @@
-mport React, { useEffect, useState, useRef } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 
 export default function KitchenDashboard() {
   const [orders, setOrders] = useState([]);
