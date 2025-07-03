@@ -20,47 +20,63 @@ export default function KitchenDashboard() {
 
   const formatDate = (rawDateStr) => {
     if (!rawDateStr) return '';
-
     let cleanStr = String(rawDateStr);
-
     if (isChrome()) {
-      cleanStr = cleanStr
-        .replace(/\s+at\s+/, ' ')
-        .replace(/\s*\([^)]*\)/g, '')
-        .trim();
+      cleanStr = cleanStr.replace(/\s+at\s+/, ' ').replace(/\s*\([^)]*\)/g, '').trim();
     }
-
     const d = new Date(cleanStr);
     if (isNaN(d)) return 'Invalid date';
-
     return `${d.getFullYear()}-${(d.getMonth() + 1).toString().padStart(2, '0')}-${d.getDate().toString().padStart(2, '0')}`;
   };
 
   const getElapsedTime = (rawDateStr) => {
     if (!rawDateStr) return 'Invalid date';
-
     let cleanStr = String(rawDateStr);
-
     if (isChrome()) {
-      cleanStr = cleanStr
-        .replace(/\s+at\s+/, ' ')
-        .replace(/\s*\([^)]*\)/g, '')
-        .trim();
+      cleanStr = cleanStr.replace(/\s+at\s+/, ' ').replace(/\s*\([^)]*\)/g, '').trim();
     }
-
     const orderDate = new Date(cleanStr);
     if (isNaN(orderDate)) return 'Invalid date';
-
     const elapsed = now - orderDate;
     const minutes = Math.floor(elapsed / 60000);
     const seconds = Math.floor((elapsed % 60000) / 1000);
     return `${minutes}m ${seconds}s ago`;
   };
 
+  const archiveOldOrders = async () => {
+    const res = await fetch('https://qsr-orders-default-rtdb.firebaseio.com/orders.json');
+    const data = await res.json();
+    if (!data) return;
+
+    const todayStr = formatDate(new Date().toString());
+
+    for (const [id, entry] of Object.entries(data)) {
+      const rawDate = entry['Order Date'] || entry['Message Date'];
+      if (!rawDate) continue;
+      const entryDateStr = formatDate(rawDate);
+      if (entryDateStr === todayStr) continue;
+
+      const archiveCheck = await fetch(`https://qsr-orders-default-rtdb.firebaseio.com/archive/${entryDateStr}/${id}.json`);
+      const alreadyArchived = await archiveCheck.json();
+      if (alreadyArchived) continue;
+
+      await fetch(`https://qsr-orders-default-rtdb.firebaseio.com/archive/${entryDateStr}/${id}.json`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ...entry, Archived: true })
+      });
+
+      await fetch(`https://qsr-orders-default-rtdb.firebaseio.com/orders/${id}.json`, {
+        method: 'DELETE'
+      });
+
+      console.log(`📦 Archived ${entry['Order Type'] || 'entry'} ${id} from ${entryDateStr}`);
+    }
+  };
+
   useEffect(() => {
     alarmAudio.current = new Audio('/alert.mp3');
     alarmAudio.current.load();
-
     messageAudio.current = new Audio('/message-alert.mp3');
     messageAudio.current.load();
 
@@ -82,11 +98,7 @@ export default function KitchenDashboard() {
       const res = await fetch('https://qsr-orders-default-rtdb.firebaseio.com/orders.json');
       const data = await res.json();
 
-      const orderArray = Object.entries(data || {}).map(([id, order]) => ({
-        id,
-        ...order
-      }));
-
+      const orderArray = Object.entries(data || {}).map(([id, order]) => ({ id, ...order }));
       orderArray.sort((a, b) =>
         new Date(formatDate(b['Order Date'] || b['Message Date'])) -
         new Date(formatDate(a['Order Date'] || a['Message Date']))
@@ -118,9 +130,9 @@ export default function KitchenDashboard() {
       }
 
       const newUnseenMessage = orderArray.find(order =>
-        order['Order Type'] === 'MESSAGE' &&
-        !seenMessages.has(order.id)
+        order['Order Type'] === 'MESSAGE' && !seenMessages.has(order.id)
       );
+
       if (newUnseenMessage) {
         console.log("📨 Triggering message alert sound");
         setSeenMessages(prev => {
@@ -171,34 +183,29 @@ export default function KitchenDashboard() {
         <p>Please click the button below to start the dashboard and enable sound alerts.</p>
         <p>(c) 2025 RT7 USA Incorporated. All rights reserved.</p>
         <button
-          onClick={() => {
+          onClick={async () => {
             console.log("🔄 Dashboard button clicked");
-            setAudioEnabled(true);
 
             try {
+              await archiveOldOrders();
+              setAudioEnabled(true);
+
               if (alarmAudio.current) {
                 alarmAudio.current.currentTime = 0;
-                alarmAudio.current.play()
-                  .then(() => {
-                    console.log("✅ Order alert playback allowed");
-                    alarmAudio.current.pause();
-                    alarmAudio.current.currentTime = 0;
-                  })
-                  .catch(err => console.warn("⚠️ Order alert playback failed:", err));
+                await alarmAudio.current.play().catch(err => console.warn("⚠️ Order alert playback failed:", err));
+                alarmAudio.current.pause();
+                alarmAudio.current.currentTime = 0;
               }
 
               if (messageAudio.current) {
                 messageAudio.current.currentTime = 0;
-                messageAudio.current.play()
-                  .then(() => {
-                    console.log("✅ Message alert playback allowed");
-                    messageAudio.current.pause();
-                    messageAudio.current.currentTime = 0;
-                  })
-                  .catch(err => console.warn("⚠️ Message alert playback failed:", err));
+                await messageAudio.current.play().catch(err => console.warn("⚠️ Message alert playback failed:", err));
+                messageAudio.current.pause();
+                messageAudio.current.currentTime = 0;
               }
-            } catch (e) {
-              console.warn("⚠️ Error during audio warmup:", e);
+
+            } catch (err) {
+              console.warn("⚠️ Error during dashboard startup:", err);
             }
           }}
           style={{ fontSize: '1.2rem', padding: '0.5rem 1rem' }}
