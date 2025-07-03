@@ -16,12 +16,11 @@ export default function KitchenDashboard() {
 
   function parseDate(input) {
     if (!input || typeof input !== 'string') return null;
-    const cleaned = input.replace(/\(.*?\)/g, '').trim();
-    const parsed = new Date(cleaned);
+    const safariFormatted = input.replace(/ at /, ', ').replace(/\(.*?\)/g, '').trim();
+    const parsed = new Date(safariFormatted);
     if (!isNaN(parsed)) return parsed;
-    const isoParsed = new Date(input);
-    if (!isNaN(isoParsed)) return isoParsed;
-    return null;
+    const fallback = new Date(input);
+    return !isNaN(fallback) ? fallback : null;
   }
 
   useEffect(() => {
@@ -63,10 +62,7 @@ export default function KitchenDashboard() {
       const res = await fetch('https://qsr-orders-default-rtdb.firebaseio.com/orders.json');
       const data = await res.json();
 
-      const orderArray = Object.entries(data || {}).map(([id, order]) => ({
-        id,
-        ...order
-      }));
+      const orderArray = Object.entries(data || {}).map(([id, order]) => ({ id, ...order }));
 
       orderArray.sort((a, b) =>
         parseDate(b['Order Date'] || b['Message Date']) - parseDate(a['Order Date'] || a['Message Date'])
@@ -119,6 +115,9 @@ export default function KitchenDashboard() {
     const interval = setInterval(fetchOrders, 5000);
     return () => clearInterval(interval);
   }, [audioEnabled, accepted, seenOrders, seenMessages]);
+
+  // Remainder of the component continues unchanged
+}
 
   const acceptOrder = async (id) => {
     const timestamp = new Date().toISOString();
