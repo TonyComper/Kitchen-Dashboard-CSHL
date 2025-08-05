@@ -219,7 +219,7 @@ export default function KitchenDashboard() {
 
   return (
     <div style={{ padding: '1rem', fontFamily: 'Arial' }}>
-      <h1>Orders and Messages - California Sandwiches HEARTLAND</h1>
+      <h1>Orders and Messages - California Sandwiches Heartland</h1>
       <p><strong>Date:</strong> {today.toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</p>
 
       <button
